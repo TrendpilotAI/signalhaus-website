@@ -1,4 +1,5 @@
 import Link from "next/link";
+import TestimonialCarousel from "@/components/TestimonialCarousel";
 
 const badges = [
   { name: "Harvard Alumni", alt: "Harvard Alumni badge" },
@@ -32,6 +33,13 @@ const pricingPreview = [
   { tier: "Enterprise OS", price: "$25K–$100K+", unit: "", desc: "Multi-agent orchestration" },
 ];
 
+const results = [
+  { number: "60–80%", label: "Avg reduction in manual workflow time", icon: "⚡" },
+  { number: "$50M+", label: "Enterprise value delivered to clients", icon: "💰" },
+  { number: "30 days", label: "Median time to first production deploy", icon: "🚀" },
+  { number: "100%", label: "Client retention rate", icon: "🤝" },
+];
+
 export default function Home() {
   return (
     <>
@@ -53,16 +61,16 @@ export default function Home() {
               Book a Free Consultation
             </Link>
             <Link
-              href="/services"
-              className="px-8 py-4 border border-gray-700 hover:border-gray-500 rounded-xl text-lg font-semibold transition"
+              href="/case-studies"
+              className="px-8 py-4 border border-gray-700 hover:border-indigo-500 rounded-xl text-lg font-semibold transition"
             >
-              Explore Services
+              See Client Results →
             </Link>
           </div>
         </div>
       </section>
 
-      {/* Social Proof */}
+      {/* Social Proof Badges */}
       <section className="py-16 border-y border-gray-800">
         <div className="max-w-5xl mx-auto px-6">
           <p className="text-center text-sm uppercase tracking-widest text-gray-500 mb-8">
@@ -83,8 +91,34 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Results Counter */}
+      <section className="py-20 px-6">
+        <div className="max-w-5xl mx-auto">
+          <p className="text-center text-sm uppercase tracking-widest text-indigo-400 mb-12">
+            Proven Results
+          </p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            {results.map((r) => (
+              <div
+                key={r.label}
+                className="p-6 bg-gray-900 rounded-2xl border border-gray-800 text-center hover:border-indigo-500/40 transition"
+              >
+                <div className="text-2xl mb-3">{r.icon}</div>
+                <p className="text-2xl md:text-3xl font-bold text-indigo-400">{r.number}</p>
+                <p className="mt-2 text-xs text-gray-400 leading-snug">{r.label}</p>
+              </div>
+            ))}
+          </div>
+          <div className="text-center mt-8">
+            <Link href="/case-studies" className="text-indigo-400 hover:text-indigo-300 font-medium transition text-sm">
+              Read the full case studies →
+            </Link>
+          </div>
+        </div>
+      </section>
+
       {/* Services */}
-      <section className="py-24 px-6">
+      <section className="py-24 px-6 bg-gray-900/30">
         <div className="max-w-6xl mx-auto">
           <h2 className="text-3xl md:text-4xl font-bold text-center mb-16">
             What We Do
@@ -106,8 +140,11 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Testimonial Carousel */}
+      <TestimonialCarousel />
+
       {/* Pricing Preview */}
-      <section className="py-24 px-6 bg-gray-900/50">
+      <section className="py-24 px-6">
         <div className="max-w-6xl mx-auto">
           <h2 className="text-3xl md:text-4xl font-bold text-center mb-4">
             Simple, Scalable Pricing
@@ -136,7 +173,7 @@ export default function Home() {
       </section>
 
       {/* CTA */}
-      <section className="py-24 px-6">
+      <section className="py-24 px-6 bg-gray-900/50">
         <div className="max-w-3xl mx-auto text-center">
           <h2 className="text-3xl md:text-4xl font-bold mb-6">
             Ready to Ship AI That Actually Works?
@@ -144,12 +181,20 @@ export default function Home() {
           <p className="text-gray-400 text-lg mb-10">
             Book a free 30-minute consultation. We&apos;ll assess your current stack, identify quick wins, and outline a roadmap — no strings attached.
           </p>
-          <Link
-            href="/contact"
-            className="inline-flex px-8 py-4 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-lg font-semibold transition"
-          >
-            Let&apos;s Talk
-          </Link>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Link
+              href="/contact"
+              className="inline-flex px-8 py-4 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-lg font-semibold transition"
+            >
+              Let&apos;s Talk
+            </Link>
+            <Link
+              href="/case-studies"
+              className="inline-flex px-8 py-4 border border-gray-700 hover:border-gray-500 rounded-xl text-lg font-semibold transition"
+            >
+              Read Case Studies
+            </Link>
+          </div>
         </div>
       </section>
     </>
