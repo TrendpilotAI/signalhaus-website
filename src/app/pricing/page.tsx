@@ -121,6 +121,22 @@ export default function PricingPage() {
         </p>
       </div>
 
+      {/* ROI Calculator CTA */}
+      <div className="max-w-3xl mx-auto mt-16 rounded-3xl border border-indigo-500/30 bg-indigo-500/5 p-8 text-center">
+        <div className="text-3xl mb-3">🧮</div>
+        <h2 className="text-2xl font-bold mb-2">Not sure which plan is right?</h2>
+        <p className="text-gray-400 mb-6">
+          Use our free ROI calculator to estimate your potential time savings, cost reductions, and revenue impact — then get a plan recommendation tailored to your numbers.
+        </p>
+        <Link
+          href="/roi-calculator"
+          className="inline-flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-500 rounded-xl font-semibold transition-colors"
+        >
+          Calculate My ROI →
+        </Link>
+        <p className="text-xs text-gray-600 mt-3">Free · Takes 2 minutes · No credit card</p>
+      </div>
+
       {/* Pricing Schema */}
       <script
         type="application/ld+json"

@@ -7,6 +7,7 @@ const nav = [
   { label: "Case Studies", href: "/case-studies" },
   { label: "Pricing", href: "/pricing" },
   { label: "About", href: "/about" },
+  { label: "ROI Calculator", href: "/roi-calculator" },
   { label: "Blog", href: "/blog" },
   { label: "Contact", href: "/contact" },
 ];
