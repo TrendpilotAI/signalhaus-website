@@ -100,10 +100,10 @@ export default function ContactForm() {
           className="w-full px-4 py-3 bg-gray-900 border border-gray-800 rounded-xl focus:border-indigo-500 focus:outline-none transition"
         >
           <option value="">Select a range</option>
-          <option value="quickstart">QuickStart ($1,250)</option>
-          <option value="growth">Growth ($4,800/mo)</option>
-          <option value="enterprise">Enterprise ($25K–$100K+)</option>
-          <option value="unsure">Not sure yet</option>
+          <option value="Under $10K">QuickStart ($1,250)</option>
+          <option value="$10K–$50K">Growth ($4,800/mo)</option>
+          <option value="$50K–$150K">Enterprise ($25K–$100K+)</option>
+          <option value="Not sure">Not sure yet</option>
         </select>
       </div>
       <div>
