@@ -4,6 +4,68 @@ import "./globals.css";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import GoogleAnalytics from "@/components/GoogleAnalytics";
+import JsonLd from "@/components/JsonLd";
+
+const organizationSchema = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "@id": "https://www.signalhaus.ai/#organization",
+  name: "SignalHaus",
+  alternateName: "SignalHaus AI",
+  url: "https://www.signalhaus.ai",
+  logo: {
+    "@type": "ImageObject",
+    url: "https://www.signalhaus.ai/logo.png",
+    width: 200,
+    height: 60,
+  },
+  description:
+    "SignalHaus helps enterprises accelerate growth with custom AI strategy, data integrations, and intelligent automation. Founded by Nathan Stevenson.",
+  founder: {
+    "@type": "Person",
+    name: "Nathan Stevenson",
+    jobTitle: "Founder & CEO",
+    url: "https://www.signalhaus.ai/about",
+  },
+  foundingDate: "2023",
+  areaServed: { "@type": "Country", name: "United States" },
+  address: {
+    "@type": "PostalAddress",
+    addressLocality: "Fort Lauderdale",
+    addressRegion: "FL",
+    addressCountry: "US",
+  },
+  contactPoint: {
+    "@type": "ContactPoint",
+    contactType: "sales",
+    email: "hello@signalhaus.ai",
+    url: "https://www.signalhaus.ai/contact",
+  },
+  sameAs: [
+    "https://www.linkedin.com/company/signalhaus",
+  ],
+  award: [
+    "AI Hot 100",
+    "WealthTech 100",
+    "AI Fintech 100",
+    "KPMG Top 50 Fintechs",
+    "World Economic Forum Technology Pioneer",
+  ],
+};
+
+const websiteSchema = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "@id": "https://www.signalhaus.ai/#website",
+  url: "https://www.signalhaus.ai",
+  name: "SignalHaus",
+  publisher: { "@id": "https://www.signalhaus.ai/#organization" },
+  potentialAction: {
+    "@type": "SearchAction",
+    target: "https://www.signalhaus.ai/blog?q={search_term_string}",
+    "query-input": "required name=search_term_string",
+  },
+};
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
@@ -40,37 +102,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={inter.variable}>
       <head>
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
-              "@context": "https://schema.org",
-              "@type": "ProfessionalService",
-              name: "SignalHaus",
-              alternateName: "SignalHaus AI",
-              url: "https://www.signalhaus.ai",
-              logo: "https://www.signalhaus.ai/logo.png",
-              description: "AI strategy, data integration, and workflow automation consultancy for enterprises",
-              founder: {
-                "@type": "Person",
-                name: "Nathan Stevenson",
-                jobTitle: "Founder & CEO",
-                alumniOf: { "@type": "Organization", name: "Harvard University" },
-              },
-              areaServed: { "@type": "Country", name: "United States" },
-              address: {
-                "@type": "PostalAddress",
-                addressLocality: "Fort Lauderdale",
-                addressRegion: "FL",
-                addressCountry: "US",
-              },
-              priceRange: "$1,250 - $100,000+",
-              serviceType: ["AI Strategy", "Data Integration", "Workflow Automation", "AI Consulting"],
-              knowsAbout: ["Artificial Intelligence", "Data Integration", "Enterprise Automation", "Financial Technology"],
-              award: ["AI Hot 100", "WealthTech 100", "AI Fintech 100", "KPMG Top 50 Fintechs", "World Economic Forum Technology Pioneer"],
-            }),
-          }}
-        />
+        <JsonLd data={organizationSchema} />
+        <JsonLd data={websiteSchema} />
       </head>
       <body className="bg-gray-950 text-gray-100 font-sans antialiased">
         <GoogleAnalytics gaId={process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || ''} />

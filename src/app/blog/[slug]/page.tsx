@@ -8,6 +8,7 @@ import {
   getAdjacentPosts,
   formatDate,
 } from "@/lib/mdx";
+import JsonLd from "@/components/JsonLd";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -90,8 +91,49 @@ export default async function BlogPostPage({ params }: PageProps) {
 
   const { prev, next } = getAdjacentPosts(slug);
 
+  const articleSchema = {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "@id": `https://www.signalhaus.ai/blog/${slug}`,
+    headline: post.title,
+    description: post.excerpt,
+    url: `https://www.signalhaus.ai/blog/${slug}`,
+    datePublished: post.date,
+    dateModified: post.date,
+    author: {
+      "@type": "Person",
+      name: post.author,
+      url: "https://www.signalhaus.ai/about",
+    },
+    publisher: {
+      "@type": "Organization",
+      "@id": "https://www.signalhaus.ai/#organization",
+      name: "SignalHaus",
+      logo: {
+        "@type": "ImageObject",
+        url: "https://www.signalhaus.ai/logo.png",
+      },
+    },
+    image: {
+      "@type": "ImageObject",
+      url: "https://www.signalhaus.ai/og-image.png",
+      width: 1200,
+      height: 630,
+    },
+    keywords: post.tags.join(", "),
+    articleSection: "AI & Technology",
+    inLanguage: "en-US",
+    isPartOf: {
+      "@type": "Blog",
+      "@id": "https://www.signalhaus.ai/blog",
+      name: "SignalHaus Blog",
+      publisher: { "@id": "https://www.signalhaus.ai/#organization" },
+    },
+  };
+
   return (
     <article className="pt-32 pb-24 px-6">
+      <JsonLd data={articleSchema} />
       <div className="max-w-3xl mx-auto">
         {/* Back link */}
         <Link

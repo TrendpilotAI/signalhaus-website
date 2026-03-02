@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import JsonLd from "@/components/JsonLd";
 
 export const metadata: Metadata = {
   title: "AI & Automation Services",
@@ -52,9 +53,41 @@ const services = [
   },
 ];
 
+const servicesSchema = {
+  "@context": "https://schema.org",
+  "@type": "ItemList",
+  name: "SignalHaus AI Consulting Services",
+  description: "Enterprise AI consulting services from strategy to deployment.",
+  url: "https://www.signalhaus.ai/services",
+  numberOfItems: services.length,
+  itemListElement: services.map((s, i) => ({
+    "@type": "ListItem",
+    position: i + 1,
+    item: {
+      "@type": "Service",
+      "@id": `https://www.signalhaus.ai/services#${s.title.toLowerCase().replace(/\s+/g, "-")}`,
+      name: s.title,
+      description: s.desc,
+      provider: {
+        "@type": "Organization",
+        "@id": "https://www.signalhaus.ai/#organization",
+        name: "SignalHaus",
+      },
+      areaServed: "United States",
+      serviceType: s.title,
+      offers: {
+        "@type": "Offer",
+        url: "https://www.signalhaus.ai/contact",
+        availability: "https://schema.org/InStock",
+      },
+    },
+  })),
+};
+
 export default function ServicesPage() {
   return (
     <section className="pt-32 pb-24 px-6">
+      <JsonLd data={servicesSchema} />
       <div className="max-w-6xl mx-auto">
         <h1 className="text-4xl md:text-5xl font-bold text-center mb-6">
           Our Services
