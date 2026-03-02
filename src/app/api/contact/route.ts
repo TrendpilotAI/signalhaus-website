@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 
 const CONTACT_EMAIL = process.env.CONTACT_EMAIL || "nathan@forwardlane.com"
 const RESEND_API_KEY = process.env.RESEND_API_KEY
+const SLACK_WEBHOOK_URL = process.env.SLACK_WEBHOOK_URL
 
 // ─── In-memory rate limiter ───────────────────────────────────────────────────
 // Max 5 submissions per IP per 15 minutes
@@ -181,6 +182,62 @@ export async function POST(req: NextRequest) {
       const text = await resp.text()
       console.error("Resend error:", resp.status, text)
       return NextResponse.json({ error: "Failed to send email" }, { status: 502 })
+    }
+
+    // ─── Slack notification (fire-and-forget) ──────────────────────────────
+    if (SLACK_WEBHOOK_URL) {
+      const budgetLabel = budget ? ` · Budget: *${escapeHtml(budget)}*` : ""
+      const companyLabel = company ? ` · ${escapeHtml(company)}` : ""
+      const slackPayload = {
+        text: `🍯 *New SignalHaus lead!*`,
+        blocks: [
+          {
+            type: "header",
+            text: { type: "plain_text", text: "🍯 New SignalHaus Lead", emoji: true },
+          },
+          {
+            type: "section",
+            fields: [
+              { type: "mrkdwn", text: `*Name:*\n${escapeHtml(name)}${companyLabel}` },
+              { type: "mrkdwn", text: `*Email:*\n${escapeHtml(email)}` },
+            ],
+          },
+          ...(budget
+            ? [
+                {
+                  type: "section",
+                  fields: [{ type: "mrkdwn", text: `*Budget:*\n${escapeHtml(budget)}` }],
+                },
+              ]
+            : []),
+          {
+            type: "section",
+            text: {
+              type: "mrkdwn",
+              text: `*Message:*\n${escapeHtml(message).slice(0, 500)}${message.length > 500 ? "…" : ""}`,
+            },
+          },
+          {
+            type: "actions",
+            elements: [
+              {
+                type: "button",
+                text: { type: "plain_text", text: "Reply via Email" },
+                url: `mailto:${email}`,
+                style: "primary",
+              },
+            ],
+          },
+        ],
+      }
+      // Non-blocking — don't let Slack failure block the response
+      fetch(SLACK_WEBHOOK_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(slackPayload),
+      }).catch((err) => {
+        console.error("Slack webhook error:", err instanceof Error ? err.message : String(err))
+      })
     }
 
     return NextResponse.json({ success: true })
