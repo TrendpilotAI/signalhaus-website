@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 
-const CONTACT_EMAIL = process.env.CONTACT_EMAIL || "nathan@forwardlane.com"
+const CONTACT_EMAIL = process.env.CONTACT_EMAIL
 const RESEND_API_KEY = process.env.RESEND_API_KEY
 const SLACK_WEBHOOK_URL = process.env.SLACK_WEBHOOK_URL
 
@@ -114,7 +114,7 @@ function validateContact(body: unknown): ValidationResult {
 
 // ─── Handler ──────────────────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
-  if (!RESEND_API_KEY) {
+  if (!RESEND_API_KEY || !CONTACT_EMAIL) {
     return NextResponse.json({ error: "Mailer not configured" }, { status: 500 })
   }
 
