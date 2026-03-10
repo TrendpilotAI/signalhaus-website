@@ -1,21 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
+import { Ratelimit } from "@upstash/ratelimit"
+import { Redis } from "@upstash/redis"
 
 const CONTACT_EMAIL = process.env.CONTACT_EMAIL
 const RESEND_API_KEY = process.env.RESEND_API_KEY
 const SLACK_WEBHOOK_URL = process.env.SLACK_WEBHOOK_URL
 
-// ─── In-memory rate limiter ───────────────────────────────────────────────────
-// Max 5 submissions per IP per 15 minutes
-const RATE_LIMIT = 5
-const WINDOW_MS = 15 * 60 * 1000 // 15 minutes
-
-interface RateEntry {
-  count: number
-  resetAt: number
-}
-
-const rateLimitStore = new Map<string, RateEntry>()
-
+// ─── Rate limiter (Upstash Redis in prod, in-memory fallback for local dev) ───
 function getClientIp(req: NextRequest): string {
   return (
     req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
@@ -24,22 +15,38 @@ function getClientIp(req: NextRequest): string {
   )
 }
 
-function checkRateLimit(ip: string): { allowed: boolean; retryAfter: number } {
-  const now = Date.now()
-  const entry = rateLimitStore.get(ip)
+function getRatelimit() {
+  const url = process.env.UPSTASH_REDIS_REST_URL
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN
 
-  if (!entry || now > entry.resetAt) {
-    rateLimitStore.set(ip, { count: 1, resetAt: now + WINDOW_MS })
-    return { allowed: true, retryAfter: 0 }
+  // Fallback to in-memory if Upstash not configured (local dev / preview)
+  if (!url || !token) {
+    const store = new Map<string, { count: number; resetAt: number }>()
+    return {
+      limit: async (ip: string) => {
+        const now = Date.now()
+        const WINDOW = 15 * 60 * 1000
+        const MAX = 5
+        const entry = store.get(ip)
+        if (!entry || now > entry.resetAt) {
+          store.set(ip, { count: 1, resetAt: now + WINDOW })
+          return { success: true, reset: now + WINDOW }
+        }
+        if (entry.count >= MAX) {
+          return { success: false, reset: entry.resetAt }
+        }
+        entry.count++
+        return { success: true, reset: entry.resetAt }
+      },
+    }
   }
 
-  if (entry.count >= RATE_LIMIT) {
-    const retryAfter = Math.ceil((entry.resetAt - now) / 1000)
-    return { allowed: false, retryAfter }
-  }
-
-  entry.count++
-  return { allowed: true, retryAfter: 0 }
+  return new Ratelimit({
+    redis: new Redis({ url, token }),
+    limiter: Ratelimit.slidingWindow(5, "15 m"),
+    analytics: false,
+    prefix: "signalhaus_contact",
+  })
 }
 
 // ─── Validation (Zod-style, no external dep) ──────────────────────────────────
@@ -119,16 +126,18 @@ export async function POST(req: NextRequest) {
   }
 
   // Rate limiting
+  const ratelimit = getRatelimit()
   const ip = getClientIp(req)
-  const { allowed, retryAfter } = checkRateLimit(ip)
-  if (!allowed) {
+  const { success, reset } = await ratelimit.limit(ip)
+  if (!success) {
+    const retryAfter = Math.ceil((reset - Date.now()) / 1000)
     return NextResponse.json(
       { error: "Too many requests. Please try again later." },
       {
         status: 429,
         headers: {
           "Retry-After": String(retryAfter),
-          "X-RateLimit-Limit": String(RATE_LIMIT),
+          "X-RateLimit-Limit": "5",
         },
       }
     )

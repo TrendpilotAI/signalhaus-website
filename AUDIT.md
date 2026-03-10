@@ -1,180 +1,270 @@
-# SignalHaus Website — Code Audit v2
+# AUDIT.md — SignalHaus Website Code Quality Audit
+*Last Updated: 2026-03-10 | v2 by Judge Agent*
 
-_Updated by Judge Agent v2 — 2026-03-01_
+## Summary
+
+| Category | Status | Issues Found |
+|---|---|---|
+| Security | 🔴 Critical | 1 critical, 2 medium |
+| Dead Code | ✅ Clean | 0 significant issues |
+| DRY Violations | ⚠️ Minor | 3 issues |
+| Missing Assets | 🔴 Bug | 1 missing file (logo.png) |
+| Dependencies | ✅ Clean | 0 CVEs |
+| Test Coverage | 🔴 Critical | 0% — no test files exist |
+| Performance | ⚠️ Minor | 3 issues |
+| Type Safety | ✅ Good | TypeScript strict mode; PostFrontmatter typed ✅ |
+| SEO / Meta | ⚠️ Needs Work | Missing dynamic OG, missing logo.png, RSS not linked |
 
 ---
 
-## Security
+## 1. Security Issues
 
-### ✅ RESOLVED: Rate Limiting
-**File:** `src/app/api/contact/route.ts`  
-Rate limiting (5 req / 15 min per IP) is implemented with in-memory Map store.
+### [CRITICAL] In-Memory Rate Limiter — Serverless-Unsafe
+**File:** `src/app/api/contact/route.ts` — Lines 14-16, 22-37  
+**Severity:** Critical  
+**Live Bug — Active in Production**
 
-### ✅ RESOLVED: Input Validation
-**File:** `src/app/api/contact/route.ts`  
-Full Zod-style validation with max lengths, XSS pattern blocking, budget whitelist.
+```typescript
+// PROBLEMATIC — line 14
+const rateLimitStore = new Map<string, RateEntry>()
+// Map state dies on every Vercel cold start.
+// Attacker can trigger 5 requests, wait for new cold start, repeat indefinitely.
+```
 
-### ✅ RESOLVED: Error Leakage
-**File:** `src/app/api/contact/route.ts`  
-Generic error messages returned to client. Internal errors logged to console only.
+**Fix:** Replace with Upstash Redis + `@upstash/ratelimit`:
+```typescript
+// src/lib/ratelimit.ts
+import { Ratelimit } from "@upstash/ratelimit"
+import { Redis } from "@upstash/redis"
+export const ratelimit = new Ratelimit({
+  redis: Redis.fromEnv(),
+  limiter: Ratelimit.slidingWindow(5, "15m"),
+})
+```
 
-### HIGH: No CSP Headers
-**File:** `next.config.ts`  
-**Issue:** No Content-Security-Policy, X-Frame-Options, or X-Content-Type-Options headers. Site is susceptible to clickjacking and content injection.  
-**Fix:** Add `headers()` in `next.config.ts`:
-```ts
-async headers() {
-  return [{
-    source: '/(.*)',
-    headers: [
-      { key: 'X-Frame-Options', value: 'DENY' },
-      { key: 'X-Content-Type-Options', value: 'nosniff' },
-      { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-      { key: 'Content-Security-Policy', value: "default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com; ..." },
-    ]
-  }]
+---
+
+### [MEDIUM] No Bot/CAPTCHA Protection on Contact Form
+**File:** `src/app/contact/ContactForm.tsx`, `src/app/api/contact/route.ts`  
+**Severity:** Medium  
+Manual XSS pattern blocking (`BLOCKED_PATTERNS`) is not a replacement for bot challenge. Automated form submission tools bypass string checks trivially.
+
+**Fix:** Integrate Cloudflare Turnstile (free, invisible/managed mode).
+
+---
+
+### [MEDIUM] CSP allows `unsafe-inline` scripts and styles
+**File:** `next.config.ts` — Lines 3-15  
+```typescript
+script-src 'self' 'unsafe-inline' 'unsafe-eval' ...
+style-src 'self' 'unsafe-inline' ...
+```
+`'unsafe-inline'` and `'unsafe-eval'` significantly weaken XSS protection.
+
+**Fix:** Implement nonce-based CSP using Next.js middleware. `'unsafe-eval'` may be needed for Next.js hydration but `'unsafe-inline'` for scripts can be replaced.
+
+---
+
+## 2. Missing Assets
+
+### [BUG] /logo.png Referenced in JSON-LD but Missing
+**File:** `src/app/layout.tsx` — Line 18
+```typescript
+logo: {
+  "@type": "ImageObject",
+  url: "https://www.signalhaus.ai/logo.png",  // ← 404
+  width: 200,
+  height: 60,
+},
+```
+**Impact:** Google's structured data parser sees a 404 for the organization logo. This hurts rich results and brand credibility in search.
+
+**Fix:** Add a `logo.png` (200x60px) to `/public/logo.png`.
+
+---
+
+## 3. Dead Code
+
+### No significant dead code found ✅
+All components are imported and used. No commented-out logic blocks.
+
+**Note:** `src/lib/gtag.ts` exports a `pageview()` helper that may not be called post-navigation in App Router (GA4 auto-tracks SPA navigation). Verify in GA4 Real-Time dashboard.
+
+---
+
+## 4. DRY Violations
+
+### [MINOR] Repeated `openGraph.images` across page metadata
+**Files:** `src/app/pricing/page.tsx:11`, `src/app/roi-calculator/page.tsx:9`, `src/app/about/page.tsx`, `src/app/case-studies/page.tsx`, `src/app/contact/page.tsx`
+```typescript
+// Repeated on every page:
+images: [{ url: "/og-image.png", width: 1200, height: 630 }]
+```
+**Fix:** Extract to `src/lib/seo.ts`:
+```typescript
+export const siteConfig = {
+  url: 'https://www.signalhaus.ai',
+  defaultOgImage: { url: '/og-image.png', width: 1200, height: 630, alt: '...' },
+} as const
+```
+
+### [MINOR] Hard-coded site URL string
+Multiple pages use `"https://www.signalhaus.ai"` inline for canonical URLs and alternates.  
+**Fix:** Use `siteConfig.url` from `src/lib/seo.ts`.
+
+### [MINOR] ROI `calculate()` function embedded in client component
+**File:** `src/components/ROICalculator.tsx` — Lines 78-100  
+Pure function with no UI dependencies. Untestable in current location.  
+**Fix:** Move to `src/lib/roi.ts`:
+```typescript
+// src/lib/roi.ts
+export const ROI_CONSTANTS = {
+  AVG_HOURLY_RATE: 75,
+  AUTOMATION_EFFICIENCY: 0.70,
+  CONVERSION_LIFT: 0.30,
+  SIGNALHAUS_MONTHLY_COST: 4800,
 }
+export function calculate(inputs: Inputs): Results { ... }
 ```
 
-### MEDIUM: CONTACT_EMAIL Fallback to Personal Email
-**File:** `src/app/api/contact/route.ts`, line 3  
-**Issue:** `const CONTACT_EMAIL = process.env.CONTACT_EMAIL || "nathan@forwardlane.com"` — silently routes to personal email if env var not set in production.  
-**Fix:** Check for `CONTACT_EMAIL` alongside `RESEND_API_KEY` and return 500 if missing.
+---
+
+## 5. Dependencies
+
+### npm audit: 0 vulnerabilities ✅
+No known CVEs in current dependency tree.
+
+### Notable versions:
+| Package | Version | Status |
+|---------|---------|--------|
+| next | 16.1.6 | Latest ✅ |
+| react | 19.2.3 | Latest ✅ |
+| tailwindcss | ^4 | Latest ✅ |
+| typescript | 5.9.3 | Latest ✅ |
+| resend | ^6.9.2 | Latest ✅ |
+| gray-matter | ^4.0.3 | Stable ✅ |
+| next-mdx-remote | ^6.0.0 | Latest ✅ |
+
+**Missing from devDependencies:**
+- No linting config (`eslint-config-next` not configured beyond defaults)
+- No `@typescript-eslint/recommended`
+- No Prettier
 
 ---
 
-## Code Quality
+## 6. Test Coverage
 
-### MEDIUM: Badge Images Are Text Placeholders
-**File:** `src/app/page.tsx`, lines ~57-70 (badges section)  
-**Issue:** Social proof badges rendered as `<div>` text elements instead of actual logo images. Looks unpolished and reduces credibility.  
-**Fix:** Replace with real SVG/PNG logos or proper `<img>` elements.
+### [CRITICAL] 0% Test Coverage
+No test files, no test runner config, no `@testing-library`, no Playwright setup.
 
-### MEDIUM: No ESLint Configuration
-**File:** `package.json` — no `lint` script; no `.eslintrc.json`  
-**Issue:** No static analysis. Type errors and code style issues can slip through.  
-**Fix:** Add `next lint` script, `.eslintrc.json` with `next/core-web-vitals`, add to CI.
+**Functions that need unit tests (prioritized):**
 
-### MEDIUM: Metadata Duplication Across Pages
-**Files:** `src/app/about/page.tsx`, `src/app/services/page.tsx`, `src/app/pricing/page.tsx`, `src/app/contact/page.tsx`, `src/app/blog/page.tsx`  
-**Issue:** Each page repeats full OG image URL (`/og.png`), site name pattern, and base URL string.  
-**Fix:** Create `src/lib/metadata.ts` with `baseMetadata` and `generatePageMetadata(title, desc, path)` helper.
+#### Unit Tests — Vitest (high priority)
+| Function | File | Lines | What to test |
+|---------|------|-------|-------------|
+| `validateContact()` | `api/contact/route.ts` | 52-105 | All 6 fields, XSS patterns, budget whitelist |
+| `checkRateLimit()` | `api/contact/route.ts` | 22-36 | Under/at/over limit, reset after window |
+| `calculate()` | `ROICalculator.tsx` | 78-100 | Math accuracy with known inputs |
+| `getAllPostsMeta()` | `lib/mdx.ts` | — | Sorted DESC, correct field extraction |
+| `getPostBySlug()` | `lib/mdx.ts` | — | Returns null for missing slug |
+| `getAdjacentPosts()` | `lib/mdx.ts` | — | First/last post edge cases |
 
-### LOW: No `next/image` Usage
-**Files:** `src/app/page.tsx` (badges), all pages  
-**Issue:** No images use `<Image>` from next/image. When real images are added, they won't be lazy-loaded or optimized.
+#### Integration Tests — Vitest + msw
+- `/api/contact` POST — happy path (mock Resend + Slack)
+- `/api/contact` POST — validation errors return 422
+- `/api/contact` POST — rate limit returns 429
 
-### LOW: No Prettier Config
-**File:** `package.json` — no `format` script; no `.prettierrc`  
-**Issue:** Code style consistency not enforced.
-
----
-
-## Testing
-
-### HIGH: Zero Test Coverage
-**Issue:** No unit, integration, or E2E tests across entire codebase. Contact form, API route, all pages untested.  
-**See:** TODO 319 (Playwright E2E)
+#### E2E Tests — Playwright
+- Contact form: fill + submit → success toast
+- Contact form: submit empty → inline error messages
+- ROI calculator: step through all 5 steps → see results
+- Navigation: all pages return non-error responses
+- Blog: post list loads, clicking opens correct slug
 
 ---
 
-## Performance
+## 7. Performance Issues
 
-### LOW: Static Sitemap Won't Scale
-**File:** `public/sitemap.xml`  
-**Issue:** Static file won't auto-update when new blog posts are added via MDX.  
-**Fix:** Replace with `src/app/sitemap.ts` using Next.js built-in dynamic sitemap generation.
+### [MINOR] TestimonialCarousel loaded eagerly
+**File:** `src/app/page.tsx` — Line 1 (top-level import)  
+**Description:** Client component with CSS animation. Included in initial server render unnecessarily.
+```typescript
+// Fix: src/app/page.tsx
+import dynamic from "next/dynamic"
+const TestimonialCarousel = dynamic(
+  () => import("@/components/TestimonialCarousel"),
+  { ssr: false, loading: () => <div className="h-48 bg-gray-800 animate-pulse rounded-xl" /> }
+)
+```
 
-### LOW: Bundle Size Unknown
-**File:** `package.json` — no `@next/bundle-analyzer`  
-**Issue:** No visibility into client bundle sizes. Should check `next-mdx-remote` client-side footprint.
+### [MINOR] Blog filesystem reads on every request
+**File:** `src/lib/mdx.ts`  
+`getAllPostsMeta()` reads + parses all MDX files synchronously on every request. Will degrade with >20 posts.
+```typescript
+// Fix: Add caching in mdx.ts
+import { cache } from "react"
+export const getAllPostsMeta = cache(function getAllPostsMeta(): PostMeta[] {
+  // ... existing implementation
+})
+// Or: export const revalidate = 3600 in blog routes
+```
+
+### [MINOR] RSS feed not linked — poor discoverability
+**File:** `src/app/layout.tsx`  
+The RSS feed (`/feed.xml`) exists but isn't linked in `<head>`.
+```typescript
+// Fix: Add to layout.tsx <head>:
+<link rel="alternate" type="application/rss+xml" title="SignalHaus Blog" href="/feed.xml" />
+```
 
 ---
 
-## SEO
+## 8. Type Safety
 
-### HIGH: No JSON-LD Structured Data
-**Files:** All pages, `src/app/layout.tsx`  
-**Issue:** No Organization, Service, or Article schemas. Missing rich result eligibility in Google.  
-**Fix:** See TODO 317.
+### TypeScript strict mode: ON ✅
+`tsconfig.json` → `"strict": true`
 
-### MEDIUM: Blog Post Missing Article Schema
+### PostFrontmatter interface: TYPED ✅
+`src/lib/mdx.ts` has properly typed `PostFrontmatter` interface. (Prior audit flagged this — it was already resolved.)
+
+### [MINOR] `body` param typed as `unknown` in contact API
+**Status:** Correct pattern — `unknown` + runtime validation is the right approach ✅
+
+---
+
+## 9. SEO / Meta Issues
+
+### [HIGH] No dynamic OG images for blog posts
 **File:** `src/app/blog/[slug]/page.tsx`  
-**Issue:** Blog posts have frontmatter metadata but no Article JSON-LD schema in the `<head>`.  
-**Fix:** Add `<script type="application/ld+json">` with Article schema in the blog post page.
+All blog posts share `/og-image.png`. Unique OG cards dramatically improve LinkedIn/Twitter CTR.
 
-### LOW: Internal Linking Sparse
-**File:** Blog post content  
-**Issue:** Blog posts don't link to /services or /pricing. Case studies don't link to /contact. Missing link equity flow.
+### [HIGH] Missing logo.png (see Section 2)
+JSON-LD organization schema references a missing logo. Breaks rich results.
 
----
+### [MEDIUM] RSS feed not discoverable
+`/feed.xml` exists but no `<link rel="alternate">` in `<head>`. Feed readers/search engines won't find it.
 
-## Accessibility
-
-### MEDIUM: Badge Section Role Mismatch
-**File:** `src/app/page.tsx` (badges section)  
-**Issue:** Badges use `role="img"` on a `<div>` but without actual images. Screen readers will announce "image" but there's no visual image. Use `role="presentation"` or add actual `<img>` elements.
-
-### LOW: Mobile Navigation
-**File:** `src/components/Header.tsx`  
-**Issue:** Desktop nav visible. Mobile hamburger menu behavior should be verified. No explicit mobile nav component visible in source.
+### [MINOR] Blog posts' `author` JSON-LD missing
+**File:** `src/app/blog/[slug]/page.tsx`  
+The Article JSON-LD should include `author: { "@type": "Person", name: "..." }`.
 
 ---
 
-## Summary Table
+## Action Items (prioritized)
 
-| Severity | Count | Key Issues |
-|----------|-------|------------|
-| HIGH | 3 | CSP headers, zero tests, no JSON-LD |
-| MEDIUM | 6 | CONTACT_EMAIL fallback, badge images, no ESLint, metadata DRY, no Prettier, blog Article schema |
-| LOW | 5 | next/image, static sitemap, bundle size, internal linking, mobile nav |
-
-**Most impactful immediate actions:**
-1. Add CSP headers (security, 30 min)
-2. Add JSON-LD schemas (SEO, 2 hours)
-3. Add HubSpot integration (revenue, 4 hours)
-
----
-
-## v3 Audit Update (2026-03-02)
-
-### ✅ RESOLVED: Slack Webhook
-**Commit:** 49c4448
-Slack webhook fires on successful contact form submit with rich block layout. Non-blocking (fire-and-forget). Error logged to console only.
-
-### MEDIUM: CONTACT_EMAIL Silent Fallback Still Present
-**File:** `src/app/api/contact/route.ts`, line 3
-```ts
-const CONTACT_EMAIL = process.env.CONTACT_EMAIL || "nathan@forwardlane.com"
-```
-RESEND_API_KEY is checked (returns 500 if missing), but CONTACT_EMAIL is NOT. If env var is missing in production, emails silently go to personal address. Fix: add guard alongside RESEND_API_KEY check.
-
-### LOW: No Type-Safe Env Module
-**Issue:** Environment variables read ad-hoc with `process.env.X`. If a new required var is added, failure mode is silent (undefined) rather than a startup crash.
-**Fix:** Create `src/lib/env.ts` with explicit checks and typed exports.
-
-### LOW: Rate Limit Store Not Persistent
-**File:** `src/app/api/contact/route.ts`
-**Issue:** In-memory Map resets on cold start (Vercel serverless). Under high load or if the function scales to multiple instances, rate limits won't be shared across instances.
-**Note:** Acceptable for current traffic. At scale, replace with Upstash Redis.
-
-### LOW: No Structured Logging
-**Issue:** `console.error()` calls are spread across the API. No request IDs, no structured JSON logs. Hard to correlate errors in Vercel logs.
-**Fix (optional):** Add a lightweight logger helper `src/lib/logger.ts` that emits `{ level, message, requestId, timestamp }` JSON.
-
----
-
-## Revised Summary Table (v3)
-
-| Severity | Count | Key Issues |
-|----------|-------|------------|
-| HIGH | 3 | CSP headers, zero tests, no JSON-LD |
-| MEDIUM | 5 | CONTACT_EMAIL fallback, badge images, no ESLint, metadata DRY, no newsletter |
-| LOW | 7 | next/image, static sitemap, bundle size, internal linking, mobile nav, env.ts, structured logging |
-
-**Quick wins (<30min each):**
-1. Microsoft Clarity (free heatmaps)
-2. LinkedIn Insight Tag
-3. Google Search Console
-4. Uptime monitoring
-5. Dynamic sitemap
+| # | Issue | File | Priority | Effort |
+|---|-------|------|----------|--------|
+| 1 | Fix missing logo.png | `public/logo.png` | P0 | 15min |
+| 2 | Replace in-memory rate limiter with Upstash | `api/contact/route.ts` | P0 | 1h |
+| 3 | Add Cloudflare Turnstile | `contact/ContactForm.tsx` + API | P0 | 2h |
+| 4 | Set up GitHub Actions CI | `.github/workflows/ci.yml` | P0 | 1h |
+| 5 | Set up Vitest + write unit tests | `src/tests/` | P1 | 3h |
+| 6 | Extract ROI calculate() to lib/roi.ts | `src/lib/roi.ts` | P1 | 30min |
+| 7 | Link RSS feed in layout | `src/app/layout.tsx` | P1 | 15min |
+| 8 | Add `React.cache()` to getAllPostsMeta | `src/lib/mdx.ts` | P2 | 15min |
+| 9 | Dynamic OG images | `src/app/og/route.tsx` | P2 | 3h |
+| 10 | Extract seo.ts constants (DRY) | `src/lib/seo.ts` | P2 | 1h |
+| 11 | Add blog author to Article JSON-LD | `blog/[slug]/page.tsx` | P2 | 30min |
+| 12 | Lazy-load TestimonialCarousel | `src/app/page.tsx` | P3 | 30min |
+| 13 | CSP nonce for styles | `next.config.ts` | P3 | 2h |
+| 14 | npm audit in CI | `.github/workflows/ci.yml` | P1 | 5min |
