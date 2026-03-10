@@ -106,6 +106,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <JsonLd data={organizationSchema} />
         <JsonLd data={websiteSchema} />
+        <link
+          rel="alternate"
+          type="application/rss+xml"
+          title="SignalHaus Blog RSS Feed"
+          href="https://www.signalhaus.ai/feed.xml"
+        />
       </head>
       <body className="bg-gray-950 text-gray-100 font-sans antialiased">
         <GoogleAnalytics gaId={process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || ''} />
