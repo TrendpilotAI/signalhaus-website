@@ -14,7 +14,7 @@
     "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.36.4",
     "gray-matter": "^4.0.3",
-    "next": "16.1.6",
+    "next": "16.1.7",
     "next-mdx-remote": "^6.0.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
