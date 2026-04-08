@@ -18,19 +18,19 @@ const services = [
   {
     title: "AI Strategy",
     icon: "🎯",
-    desc: "We audit your operations, identify the highest-ROI AI opportunities, and build a pragmatic implementation roadmap. No fluff, no 80-page decks — just a clear path from where you are to where you need to be.",
+    desc: "Stop guessing which AI projects will actually pay off. We audit your operations, score every opportunity by ROI, and deliver a 90-day implementation roadmap you can act on immediately — not an 80-page deck that collects dust.",
     deliverables: ["AI readiness assessment", "Opportunity scoring matrix", "90-day implementation roadmap", "Technology stack recommendations"],
   },
   {
     title: "Data Integration",
     icon: "🔗",
-    desc: "Your AI is only as good as your data. We connect CRMs, ERPs, data warehouses, and third-party sources into a unified intelligence layer that feeds every downstream process.",
+    desc: "Your data is scattered across 12 tools and none of them talk to each other. We connect your CRM, ERP, data warehouse, and third-party sources into a single intelligence layer — so every team works from the same truth and every automation has clean data to run on.",
     deliverables: ["Data architecture design", "API & ETL pipeline development", "Real-time sync configuration", "Data quality monitoring"],
   },
   {
     title: "Workflow Automation",
     icon: "⚡",
-    desc: "Replace manual processes with intelligent agents. From outbound sales sequences to compliance reporting, we build automations that run 24/7 with human-quality judgment.",
+    desc: "Replace the manual work your team dreads. From outbound sales sequences to compliance reporting to monthly reconciliation, we build intelligent agents that run 24/7 with human-quality judgment — freeing your ops and revenue teams to focus on work that actually grows the business.",
     deliverables: ["Process mapping & optimization", "Custom AI agent development", "Voice & chat bot deployment", "Performance dashboards"],
   },
   {
@@ -93,7 +93,7 @@ export default function ServicesPage() {
           Our Services
         </h1>
         <p className="text-center text-gray-400 text-lg max-w-2xl mx-auto mb-16">
-          End-to-end AI consulting from strategy through deployment. Every engagement is tailored to your business, your data, and your goals.
+          Your team is buried in manual workflows, your data lives in 12 different tools, and you don't have an in-house ML team. We fix all three — with custom AI solutions tailored to your business, your data, and your revenue goals.
         </p>
         <div className="grid md:grid-cols-2 gap-8">
           {services.map((s) => (

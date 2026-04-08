@@ -22,7 +22,7 @@ const organizationSchema = {
     height: 60,
   },
   description:
-    "SignalHaus helps enterprises accelerate growth with custom AI strategy, data integrations, and intelligent automation. Founded by Nathan Stevenson.",
+    "SignalHaus builds custom AI automations, data integrations, and intelligent agents for growth-stage B2B companies. Founded by Nathan Stevenson.",
   founder: {
     "@type": "Person",
     name: "Nathan Stevenson",
@@ -74,26 +74,26 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 export const metadata: Metadata = {
   metadataBase: new URL("https://www.signalhaus.ai"),
   title: {
-    default: "SignalHaus — AI Strategy, Data Integration & Automation Consultancy",
+    default: "SignalHaus — AI Automation & Data Integration for B2B Revenue Teams",
     template: "%s | SignalHaus",
   },
   description:
-    "SignalHaus helps enterprises accelerate growth with custom AI strategy, data integrations, and intelligent automation. From rapid prototypes to enterprise-scale AI orchestration. Founded by Nathan Stevenson.",
+    "SignalHaus builds custom AI automations, data integrations, and intelligent agents for growth-stage B2B companies. We help ops, sales, and finance teams eliminate manual workflows and ship AI that drives revenue — in 30 days, not 6 months.",
   openGraph: {
     type: "website",
     locale: "en_US",
     url: "https://www.signalhaus.ai",
     siteName: "SignalHaus",
-    title: "SignalHaus — AI Strategy, Data Integration & Automation Consultancy",
+    title: "SignalHaus — AI Automation & Data Integration for B2B Revenue Teams",
     description:
-      "SignalHaus helps enterprises accelerate growth with custom AI strategy, data integrations, and intelligent automation.",
-    images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "SignalHaus — Pragmatic AI. Real Impact." }],
+      "SignalHaus builds custom AI automations, data integrations, and intelligent agents for growth-stage B2B companies.",
+    images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "SignalHaus — AI Automation for B2B Revenue Teams" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "SignalHaus — AI Strategy, Data Integration & Automation Consultancy",
+    title: "SignalHaus — AI Automation & Data Integration for B2B Revenue Teams",
     description:
-      "Custom AI strategy, data integrations, and intelligent automation for enterprises.",
+      "Custom AI automations, data integrations, and intelligent agents for growth-stage B2B companies.",
     images: ["/og-image.png"],
   },
   robots: { index: true, follow: true },
