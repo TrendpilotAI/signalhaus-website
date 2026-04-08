@@ -74,16 +74,17 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 export const metadata: Metadata = {
   metadataBase: new URL("https://www.signalhaus.ai"),
   title: {
-    default: "SignalHaus — AI Automation & Data Integration for B2B Revenue Teams",
+    default: "SignalHaus — AI Automation for B2B Revenue Teams",
     template: "%s | SignalHaus",
   },
   description:
-    "SignalHaus builds custom AI automations, data integrations, and intelligent agents for growth-stage B2B companies. We help ops, sales, and finance teams eliminate manual workflows and ship AI that drives revenue — in 30 days, not 6 months.",
+    "SignalHaus builds custom AI automations, data integrations, and intelligent agents for growth-stage B2B companies. Ship AI that drives revenue — in 30 days, not 6 months.",
   openGraph: {
     type: "website",
     locale: "en_US",
     url: "https://www.signalhaus.ai",
     siteName: "SignalHaus",
+<<<<<<< HEAD
     title: "SignalHaus — AI Automation & Data Integration for B2B Revenue Teams",
     description:
       "SignalHaus builds custom AI automations, data integrations, and intelligent agents for growth-stage B2B companies.",
@@ -91,7 +92,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "SignalHaus — AI Automation & Data Integration for B2B Revenue Teams",
+    title: "SignalHaus — AI Automation for B2B Revenue Teams",
     description:
       "Custom AI automations, data integrations, and intelligent agents for growth-stage B2B companies.",
     images: ["/og-image.png"],

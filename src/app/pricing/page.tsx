@@ -123,6 +123,12 @@ export default function PricingPage() {
         <p className="text-center text-sm text-gray-500 mt-12">
           All plans start with a free 30-minute discovery call. Custom engagements available.
         </p>
+        <p className="text-center text-sm text-gray-400 mt-4">
+          Our clients see 60-80% reductions in manual workflow time.{" "}
+          <Link href="/case-studies" className="text-indigo-400 hover:text-indigo-300 font-medium transition">
+            See real results from real engagements →
+          </Link>
+        </p>
       </div>
 
       {/* ROI Calculator CTA */}

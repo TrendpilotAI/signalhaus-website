@@ -4,7 +4,7 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "About",
   description:
-    "SignalHaus was founded by Nathan Stevenson, former CEO of ForwardLane. Harvard alum, World Economic Forum Technology Pioneer, Techstars graduate. 15+ years building enterprise AI.",
+    "Founded by Nathan Stevenson, former CEO of ForwardLane. Harvard alum, WEF Technology Pioneer, Techstars grad. 15+ years in enterprise AI.",
   alternates: { canonical: "https://www.signalhaus.ai/about" },
   openGraph: {
     title: "About SignalHaus",
@@ -80,13 +80,23 @@ export default function AboutPage() {
           ))}
         </div>
 
-        <div className="text-center">
+        <div className="text-center space-y-4">
           <Link
             href="/contact"
             className="inline-flex px-8 py-4 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-lg font-semibold transition"
           >
             Work With Us
           </Link>
+          <p className="text-gray-400 text-sm">
+            Learn more about{" "}
+            <Link href="/services" className="text-indigo-400 hover:text-indigo-300 font-medium transition">
+              our services
+            </Link>
+            {" "}or see how we deliver results in our{" "}
+            <Link href="/case-studies" className="text-indigo-400 hover:text-indigo-300 font-medium transition">
+              case studies
+            </Link>.
+          </p>
         </div>
       </div>
     </section>

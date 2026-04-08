@@ -3,12 +3,12 @@ import Link from "next/link";
 import { getAllPostsMeta, getAllTags, formatDate } from "@/lib/mdx";
 
 export const metadata: Metadata = {
-  title: "Blog | SignalHaus",
+  title: "Blog",
   description:
     "Insights on AI strategy, enterprise automation, and data integration from the SignalHaus team.",
   alternates: { canonical: "https://www.signalhaus.ai/blog" },
   openGraph: {
-    title: "Blog | SignalHaus",
+    title: "Blog | SignalHaus AI Insights",
     description: "AI strategy and automation insights from enterprise practitioners.",
     images: [{ url: "/og-image.png", width: 1200, height: 630 }],
   },
@@ -34,6 +34,10 @@ export default async function BlogPage({ searchParams }: PageProps) {
         <h1 className="text-4xl md:text-5xl font-bold text-center mb-6">Blog</h1>
         <p className="text-center text-gray-400 text-lg mb-10">
           Practical insights on AI strategy, automation, and data from operators who&apos;ve shipped at scale.
+          {" "}Looking to put these ideas into practice? Explore our{" "}
+          <Link href="/services" className="text-indigo-400 hover:text-indigo-300 font-medium transition">
+            AI consulting services
+          </Link>.
         </p>
 
         {/* Tag filter */}

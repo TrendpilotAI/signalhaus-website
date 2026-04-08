@@ -24,7 +24,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const post = getPostBySlug(slug);
   if (!post) return {};
   return {
-    title: `${post.title} | SignalHaus Blog`,
+    title: post.title,
     description: post.excerpt,
     alternates: { canonical: `https://www.signalhaus.ai/blog/${slug}` },
     openGraph: {
@@ -36,8 +36,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 const mdxComponents = {
+  /* Map MDX h1 → rendered h2 to preserve single-h1 hierarchy (page h1 is the post title) */
   h1: (props: React.HTMLAttributes<HTMLHeadingElement>) => (
-    <h1 className="text-3xl font-bold text-white mt-12 mb-4" {...props} />
+    <h2 className="text-3xl font-bold text-white mt-12 mb-4" {...props} />
   ),
   h2: (props: React.HTMLAttributes<HTMLHeadingElement>) => (
     <h2 className="text-2xl font-bold text-white mt-12 mb-4" {...props} />
