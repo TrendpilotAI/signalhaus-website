@@ -4,7 +4,7 @@ import ROICalculator from "@/components/ROICalculator";
 export const metadata: Metadata = {
   title: "ROI Calculator — See Your AI Automation Returns",
   description:
-    "Calculate your potential ROI from AI automation. Estimate time saved, cost reductions, and revenue impact in under 2 minutes. See exactly what SignalHaus can deliver for your team.",
+    "Calculate your potential ROI from AI automation. Estimate time saved, cost reductions, and revenue impact in under 2 minutes.",
   alternates: { canonical: "https://www.signalhaus.ai/roi-calculator" },
   openGraph: {
     title: "AI ROI Calculator | SignalHaus",

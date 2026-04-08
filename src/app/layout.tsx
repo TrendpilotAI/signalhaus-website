@@ -74,24 +74,24 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 export const metadata: Metadata = {
   metadataBase: new URL("https://www.signalhaus.ai"),
   title: {
-    default: "SignalHaus — AI Strategy, Data Integration & Automation Consultancy",
+    default: "SignalHaus — AI Strategy & Automation Consultancy",
     template: "%s | SignalHaus",
   },
   description:
-    "SignalHaus helps enterprises accelerate growth with custom AI strategy, data integrations, and intelligent automation. From rapid prototypes to enterprise-scale AI orchestration. Founded by Nathan Stevenson.",
+    "SignalHaus helps enterprises accelerate growth with custom AI strategy, data integrations, and intelligent automation. Founded by Nathan Stevenson.",
   openGraph: {
     type: "website",
     locale: "en_US",
     url: "https://www.signalhaus.ai",
     siteName: "SignalHaus",
-    title: "SignalHaus — AI Strategy, Data Integration & Automation Consultancy",
+    title: "SignalHaus — AI Strategy & Automation Consultancy",
     description:
-      "SignalHaus helps enterprises accelerate growth with custom AI strategy, data integrations, and intelligent automation.",
+      "Enterprise AI strategy, data integrations, and intelligent automation. Founded by Nathan Stevenson.",
     images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "SignalHaus — Pragmatic AI. Real Impact." }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "SignalHaus — AI Strategy, Data Integration & Automation Consultancy",
+    title: "SignalHaus — AI Strategy & Automation Consultancy",
     description:
       "Custom AI strategy, data integrations, and intelligent automation for enterprises.",
     images: ["/og-image.png"],

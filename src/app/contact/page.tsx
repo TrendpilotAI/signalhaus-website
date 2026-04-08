@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import ContactForm from "./ContactForm";
 
 export const metadata: Metadata = {
-  title: "Contact | SignalHaus",
+  title: "Contact",
   description:
     "Get in touch with SignalHaus. Book a free 30-minute AI consultation to discuss your business needs.",
   alternates: { canonical: "https://www.signalhaus.ai/contact" },

@@ -5,7 +5,7 @@ import JsonLd from "@/components/JsonLd";
 export const metadata: Metadata = {
   title: "AI & Automation Services",
   description:
-    "Explore SignalHaus AI consulting services: AI Strategy, Data Integration, Workflow Automation, Rapid Prototyping, AI Product Design, and Fractional CTO. Enterprise-grade solutions.",
+    "SignalHaus AI consulting: Strategy, Data Integration, Workflow Automation, Rapid Prototyping, AI Product Design, and Fractional CTO.",
   alternates: { canonical: "https://www.signalhaus.ai/services" },
   openGraph: {
     title: "AI & Automation Services | SignalHaus",
@@ -113,13 +113,19 @@ export default function ServicesPage() {
             </div>
           ))}
         </div>
-        <div className="text-center mt-16">
+        <div className="text-center mt-16 space-y-4">
           <Link
             href="/contact"
             className="inline-flex px-8 py-4 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-lg font-semibold transition"
           >
             Discuss Your Project
           </Link>
+          <p className="text-gray-400 text-sm">
+            See how we helped a wealth manager cut analyst time by 75% and an asset manager triple pipeline velocity.{" "}
+            <Link href="/case-studies" className="text-indigo-400 hover:text-indigo-300 font-medium transition">
+              Read our case studies →
+            </Link>
+          </p>
         </div>
       </div>
     </section>

@@ -2,9 +2,15 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Case Studies | SignalHaus",
+  title: "Case Studies",
   description:
-    "Real outcomes from real engagements. See how SignalHaus has helped enterprise clients cut manual workflows, accelerate revenue, and deploy AI at scale.",
+    "Real outcomes from real engagements. See how SignalHaus helped enterprise clients cut manual workflows and deploy AI at scale.",
+  alternates: { canonical: "https://www.signalhaus.ai/case-studies" },
+  openGraph: {
+    title: "Case Studies | SignalHaus",
+    description: "Real AI outcomes: workflow automation, data integration, and enterprise AI deployments.",
+    images: [{ url: "/og-image.png", width: 1200, height: 630 }],
+  },
 };
 
 const caseStudies = [
@@ -227,12 +233,20 @@ export default function CaseStudiesPage() {
             Book a free 30-minute consultation. We&apos;ll assess your current stack,
             identify your highest-ROI AI opportunity, and outline a roadmap.
           </p>
-          <Link
-            href="/contact"
-            className="inline-flex px-8 py-4 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-lg font-semibold transition"
-          >
-            Book a Free Consultation
-          </Link>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Link
+              href="/contact"
+              className="inline-flex px-8 py-4 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-lg font-semibold transition"
+            >
+              Book a Free Consultation
+            </Link>
+            <Link
+              href="/services"
+              className="inline-flex px-8 py-4 border border-gray-700 hover:border-indigo-500 rounded-xl text-lg font-semibold transition"
+            >
+              Explore Our Services →
+            </Link>
+          </div>
         </div>
       </section>
     </>

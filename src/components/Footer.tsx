@@ -20,6 +20,7 @@ export default function Footer() {
           <h4 className="font-semibold text-sm mb-3">Company</h4>
           <ul className="space-y-2 text-sm text-gray-400">
             <li><Link href="/about" className="hover:text-white transition">About</Link></li>
+            <li><Link href="/case-studies" className="hover:text-white transition">Case Studies</Link></li>
             <li><Link href="/blog" className="hover:text-white transition">Blog</Link></li>
             <li><Link href="/pricing" className="hover:text-white transition">Pricing</Link></li>
           </ul>
@@ -28,6 +29,7 @@ export default function Footer() {
           <h4 className="font-semibold text-sm mb-3">Get Started</h4>
           <ul className="space-y-2 text-sm text-gray-400">
             <li><Link href="/contact" className="hover:text-white transition">Contact</Link></li>
+            <li><Link href="/roi-calculator" className="hover:text-white transition">ROI Calculator</Link></li>
             <li><a href="https://www.linkedin.com/company/signalhaus" target="_blank" rel="noopener noreferrer" className="hover:text-white transition">LinkedIn</a></li>
           </ul>
         </div>
