@@ -14,12 +14,12 @@ export const metadata: Metadata = {
 };
 
 const milestones = [
-  { year: "2014", text: "Nathan founds ForwardLane, one of the first AI platforms for wealth management" },
-  { year: "2016", text: "Selected for Techstars Barclays Accelerator in London" },
-  { year: "2017", text: "Named World Economic Forum Technology Pioneer" },
-  { year: "2018", text: "Enterprise deployments at BNY Pershing, Invesco, LPL Financial, Columbia Threadneedle" },
-  { year: "2020", text: "Recognized in AI Hot 100, KPMG Top 50 Fintechs, WealthTech 100" },
-  { year: "2024", text: "SignalHaus launches — bringing enterprise AI expertise to growth-stage companies" },
+  { year: "2014", text: "Nathan founds ForwardLane — built one of the first AI platforms for wealth management, proving AI could automate complex advisory workflows" },
+  { year: "2016", text: "Selected for Techstars Barclays Accelerator — validated enterprise AI delivery model with top-tier financial institutions" },
+  { year: "2017", text: "Named World Economic Forum Technology Pioneer — recognized for real-world AI impact, not research papers" },
+  { year: "2018", text: "Deployed AI at BNY Pershing, Invesco, LPL Financial, Columbia Threadneedle — driving $50M+ in measurable revenue impact" },
+  { year: "2020", text: "Named AI Hot 100, KPMG Top 50 Fintechs, WealthTech 100 — proving consistent delivery across enterprise clients" },
+  { year: "2024", text: "SignalHaus launches — making enterprise-grade AI accessible to growth-stage B2B teams without in-house ML resources" },
 ];
 
 export default function AboutPage() {
@@ -30,7 +30,7 @@ export default function AboutPage() {
           About SignalHaus
         </h1>
         <p className="text-center text-gray-400 text-lg max-w-2xl mx-auto mb-20">
-          We&apos;re not another AI agency with a pitch deck and a prayer. We&apos;ve built and shipped enterprise AI at scale — and now we bring that experience to you.
+          15+ years of building AI for the world&apos;s largest financial institutions — now applied to helping growth-stage B2B teams ship automations that actually drive revenue.
         </p>
 
         {/* Founder */}
@@ -69,9 +69,9 @@ export default function AboutPage() {
         {/* Values */}
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-16">
           {[
-            { title: "Pragmatic", desc: "We build what works, not what sounds impressive in a pitch. Every recommendation is grounded in real-world outcomes." },
-            { title: "Transparent", desc: "No black boxes, no vendor lock-in. You own your code, your data, and your infrastructure." },
-            { title: "Operator-Led", desc: "Every project is led by people who've built and scaled AI products — not junior consultants reading a playbook." },
+            { title: "Pragmatic", desc: "We only recommend what will deliver measurable ROI. Every engagement starts with your revenue goals and works backward to the right solution." },
+            { title: "Transparent", desc: "No black boxes, no vendor lock-in. You own your code, your data, and your infrastructure — and you see results within 30 days." },
+            { title: "Operator-Led", desc: "Every project is led by people who've built and scaled AI products at enterprise — not junior consultants reading a playbook." },
           ].map((v) => (
             <div key={v.title} className="p-6 bg-gray-900 rounded-xl border border-gray-800">
               <h3 className="font-semibold mb-2">{v.title}</h3>

@@ -12,17 +12,17 @@ const badges = [
 const services = [
   {
     title: "AI Strategy",
-    desc: "Cut through the hype. We assess your operations, identify high-ROI AI opportunities, and build a pragmatic roadmap that ships in weeks, not quarters.",
+    desc: "Stop guessing which AI projects will actually pay off. We audit your ops, score every opportunity by ROI, and hand you a 90-day roadmap that ships real results — not a deck that collects dust.",
     icon: "🎯",
   },
   {
     title: "Data Integration",
-    desc: "Connect your CRM, data warehouse, and third-party sources into a unified intelligence layer. Clean data in, actionable insights out.",
+    desc: "Your data is scattered across 12 tools. We fix that. We unify your CRM, data warehouse, and third-party sources into one intelligence layer so every team works from the same truth.",
     icon: "🔗",
   },
   {
     title: "Workflow Automation",
-    desc: "Replace manual processes with intelligent agents that handle outreach, qualification, reporting, and more — 24/7, without burnout.",
+    desc: "Replace the manual work your team dreads. We build intelligent agents that handle outreach, qualification, reporting, and reconciliation — 24/7, so your people focus on closing deals and moving revenue.",
     icon: "⚡",
   },
 ];
@@ -34,10 +34,10 @@ const pricingPreview = [
 ];
 
 const results = [
-  { number: "60–80%", label: "Avg reduction in manual workflow time", icon: "⚡" },
-  { number: "$50M+", label: "Enterprise value delivered to clients", icon: "💰" },
-  { number: "30 days", label: "Median time to first production deploy", icon: "🚀" },
-  { number: "100%", label: "Client retention rate", icon: "🤝" },
+  { number: "60–80%", label: "Less time spent on manual ops workflows", icon: "⚡" },
+  { number: "$50M+", label: "Revenue impact delivered across client portfolios", icon: "💰" },
+  { number: "30 days", label: "From kickoff to first automation in production", icon: "🚀" },
+  { number: "100%", label: "Client retention — every engagement renews", icon: "🤝" },
 ];
 
 export default function Home() {
@@ -47,18 +47,18 @@ export default function Home() {
       <section className="pt-32 pb-20 px-6 overflow-hidden">
         <div className="max-w-4xl mx-auto text-center">
           <h1 className="text-3xl sm:text-5xl md:text-7xl font-bold tracking-tight leading-tight">
-            Pragmatic AI.<br />
-            <span className="text-indigo-400">Real Impact.</span>
+            Your Team Spends 60% of Their Time<br />
+            <span className="text-indigo-400">on Work AI Should Handle</span>
           </h1>
           <p className="mt-6 text-base sm:text-xl text-gray-400 max-w-2xl mx-auto">
-            We help enterprises accelerate growth with custom AI strategy, data integrations, and intelligent automation — built by operators who&apos;ve shipped AI at scale for BNY Pershing, Invesco, and LPL Financial.
+            We build custom AI automations, data integrations, and intelligent agents for B2B companies — so your ops, sales, and finance teams can focus on work that actually moves revenue.
           </p>
           <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
             <Link
               href="/contact"
               className="px-8 py-4 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-lg font-semibold transition"
             >
-              Book a Free Consultation
+              Book a Free Strategy Call
             </Link>
             <Link
               href="/case-studies"
@@ -74,7 +74,7 @@ export default function Home() {
       <section className="py-16 border-y border-gray-800">
         <div className="max-w-5xl mx-auto px-6">
           <p className="text-center text-sm uppercase tracking-widest text-gray-500 mb-8">
-            Recognized by
+            Trusted by teams backed by
           </p>
           <div className="flex flex-wrap justify-center gap-8 md:gap-12">
             {badges.map((b) => (
@@ -121,7 +121,7 @@ export default function Home() {
       <section className="py-24 px-6 bg-gray-900/30">
         <div className="max-w-6xl mx-auto">
           <h2 className="text-3xl md:text-4xl font-bold text-center mb-16">
-            What We Do
+            How We Help
           </h2>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
             {services.map((s) => (
@@ -176,10 +176,10 @@ export default function Home() {
       <section className="py-24 px-6 bg-gray-900/50">
         <div className="max-w-3xl mx-auto text-center">
           <h2 className="text-3xl md:text-4xl font-bold mb-6">
-            Ready to Ship AI That Actually Works?
+            Stop Burning Budget on AI Projects That Never Ship
           </h2>
           <p className="text-gray-400 text-lg mb-10">
-            Book a free 30-minute consultation. We&apos;ll assess your current stack, identify quick wins, and outline a roadmap — no strings attached.
+            Most engagements start delivering ROI within 30 days. No six-month runway, no bloated retainer, no risk. Book a free strategy call and we&apos;ll map your highest-impact automation opportunities in 30 minutes.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link

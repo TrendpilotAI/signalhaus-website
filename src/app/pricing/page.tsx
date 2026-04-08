@@ -19,6 +19,7 @@ const tiers = [
     price: "$1,250",
     unit: "flat",
     desc: "Perfect for testing the waters. Get tangible AI wins fast.",
+    bestFor: "Teams testing their first AI automation",
     features: [
       "Up to 3 custom automations",
       "1 voice or chat agent",
@@ -34,6 +35,7 @@ const tiers = [
     price: "$4,800",
     unit: "/month",
     desc: "For teams ready to scale. Ongoing optimization and support.",
+    bestFor: "Revenue and ops teams scaling proven workflows",
     features: [
       "10 automations + 5 AI agents",
       "CRM & data integration",
@@ -50,6 +52,7 @@ const tiers = [
     price: "$25K–$100K+",
     unit: "",
     desc: "Full-stack AI transformation for enterprises.",
+    bestFor: "Organizations transforming entire business units with AI",
     features: [
       "Multi-agent orchestration",
       "Predictive analytics & ML models",
@@ -90,7 +93,8 @@ export default function PricingPage() {
                 </span>
               )}
               <h2 className="text-xl font-semibold mb-2">{t.name}</h2>
-              <p className="text-gray-400 text-sm mb-6">{t.desc}</p>
+              <p className="text-gray-400 text-sm mb-2">{t.desc}</p>
+              <p className="text-indigo-400 text-xs font-medium mb-6">Best for: {t.bestFor}</p>
               <p className="text-4xl font-bold mb-1">
                 {t.price}
                 {t.unit && <span className="text-base font-normal text-gray-400">{t.unit}</span>}
