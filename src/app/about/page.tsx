@@ -67,7 +67,7 @@ export default function AboutPage() {
         </div>
 
         {/* Values */}
-        <div className="grid md:grid-cols-3 gap-6 mb-16">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-16">
           {[
             { title: "Pragmatic", desc: "We build what works, not what sounds impressive in a pitch. Every recommendation is grounded in real-world outcomes." },
             { title: "Transparent", desc: "No black boxes, no vendor lock-in. You own your code, your data, and your infrastructure." },

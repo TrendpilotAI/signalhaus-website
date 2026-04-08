@@ -114,10 +114,10 @@ export default function CaseStudiesPage() {
           <p className="text-sm uppercase tracking-widest text-indigo-400 mb-4">
             Client Outcomes
           </p>
-          <h1 className="text-5xl md:text-6xl font-bold tracking-tight">
+          <h1 className="text-3xl sm:text-5xl md:text-6xl font-bold tracking-tight">
             Results That <span className="text-indigo-400">Speak for Themselves</span>
           </h1>
-          <p className="mt-6 text-xl text-gray-400 max-w-2xl mx-auto">
+          <p className="mt-6 text-base sm:text-xl text-gray-400 max-w-2xl mx-auto">
             We don&apos;t do vanity metrics. Every engagement below shipped to production
             and delivered measurable ROI — typically within 30–90 days.
           </p>
@@ -127,7 +127,7 @@ export default function CaseStudiesPage() {
       {/* Aggregate Stats */}
       <section className="py-12 border-y border-gray-800">
         <div className="max-w-5xl mx-auto px-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8 text-center">
             {[
               { number: "60–80%", label: "Avg reduction in manual workflow time" },
               { number: "$50M+", label: "Enterprise value delivered" },
@@ -168,7 +168,7 @@ export default function CaseStudiesPage() {
                 </div>
               </div>
 
-              <div className="grid md:grid-cols-2 gap-8 mb-8">
+              <div className="grid sm:grid-cols-2 gap-8 mb-8">
                 {/* Problem */}
                 <div className="p-6 bg-gray-900 rounded-2xl border border-gray-800">
                   <h3 className="text-xs uppercase tracking-widest text-red-400 mb-3 font-semibold">
@@ -191,7 +191,7 @@ export default function CaseStudiesPage() {
                 <h3 className="text-xs uppercase tracking-widest text-emerald-400 mb-6 font-semibold">
                   The Results
                 </h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
                   {cs.results.map((r) => (
                     <div key={r.label} className="text-center">
                       <p className="text-2xl md:text-3xl font-bold text-white">{r.metric}</p>

@@ -95,7 +95,7 @@ export default function ServicesPage() {
         <p className="text-center text-gray-400 text-lg max-w-2xl mx-auto mb-16">
           End-to-end AI consulting from strategy through deployment. Every engagement is tailored to your business, your data, and your goals.
         </p>
-        <div className="grid md:grid-cols-2 gap-8">
+        <div className="grid sm:grid-cols-2 gap-8">
           {services.map((s) => (
             <div key={s.title} className="p-8 bg-gray-900 rounded-2xl border border-gray-800 hover:border-indigo-500/50 transition">
               <span className="text-4xl">{s.icon}</span>

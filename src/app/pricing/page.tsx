@@ -74,7 +74,7 @@ export default function PricingPage() {
         <p className="text-center text-gray-400 text-lg max-w-2xl mx-auto mb-16">
           Transparent pricing. No hidden fees. Every plan includes a discovery call to ensure we&apos;re the right fit.
         </p>
-        <div className="grid md:grid-cols-3 gap-8">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
           {tiers.map((t) => (
             <div
               key={t.name}

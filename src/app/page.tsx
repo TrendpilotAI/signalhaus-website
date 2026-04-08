@@ -44,13 +44,13 @@ export default function Home() {
   return (
     <>
       {/* Hero */}
-      <section className="pt-32 pb-20 px-6">
+      <section className="pt-32 pb-20 px-6 overflow-hidden">
         <div className="max-w-4xl mx-auto text-center">
-          <h1 className="text-5xl md:text-7xl font-bold tracking-tight leading-tight">
+          <h1 className="text-3xl sm:text-5xl md:text-7xl font-bold tracking-tight leading-tight">
             Pragmatic AI.<br />
             <span className="text-indigo-400">Real Impact.</span>
           </h1>
-          <p className="mt-6 text-xl text-gray-400 max-w-2xl mx-auto">
+          <p className="mt-6 text-base sm:text-xl text-gray-400 max-w-2xl mx-auto">
             We help enterprises accelerate growth with custom AI strategy, data integrations, and intelligent automation — built by operators who&apos;ve shipped AI at scale for BNY Pershing, Invesco, and LPL Financial.
           </p>
           <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
@@ -97,7 +97,7 @@ export default function Home() {
           <p className="text-center text-sm uppercase tracking-widest text-indigo-400 mb-12">
             Proven Results
           </p>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
             {results.map((r) => (
               <div
                 key={r.label}
@@ -123,7 +123,7 @@ export default function Home() {
           <h2 className="text-3xl md:text-4xl font-bold text-center mb-16">
             What We Do
           </h2>
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
             {services.map((s) => (
               <div key={s.title} className="p-8 bg-gray-900 rounded-2xl border border-gray-800 hover:border-indigo-500/50 transition">
                 <span className="text-4xl">{s.icon}</span>
@@ -152,7 +152,7 @@ export default function Home() {
           <p className="text-center text-gray-400 mb-16 max-w-xl mx-auto">
             From one-off automations to full enterprise AI orchestration.
           </p>
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
             {pricingPreview.map((p) => (
               <div key={p.tier} className="p-8 bg-gray-950 rounded-2xl border border-gray-800 text-center">
                 <h3 className="text-lg font-semibold mb-4">{p.tier}</h3>

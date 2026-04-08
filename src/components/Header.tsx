@@ -46,11 +46,11 @@ export default function Header() {
       {open && (
         <nav className="md:hidden border-t border-gray-800 bg-gray-950 px-6 py-4 flex flex-col gap-4">
           {nav.map((n) => (
-            <Link key={n.href} href={n.href} onClick={() => setOpen(false)} className="text-gray-300 hover:text-white">
+            <Link key={n.href} href={n.href} onClick={() => setOpen(false)} className="text-gray-300 hover:text-white min-h-[44px] flex items-center">
               {n.label}
             </Link>
           ))}
-          <Link href="/contact" onClick={() => setOpen(false)} className="px-4 py-2 bg-indigo-600 rounded-lg text-center text-sm font-medium">
+          <Link href="/contact" onClick={() => setOpen(false)} className="px-4 py-3 bg-indigo-600 rounded-lg text-center text-sm font-medium min-h-[44px] flex items-center justify-center">
             Book a Call
           </Link>
         </nav>

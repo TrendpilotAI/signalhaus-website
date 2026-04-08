@@ -83,7 +83,7 @@ export default function TestimonialCarousel() {
           {/* Quote */}
           <blockquote className="text-center">
             <div className="text-4xl text-indigo-500 mb-6 leading-none">&ldquo;</div>
-            <p className="text-xl md:text-2xl text-gray-200 leading-relaxed font-light max-w-3xl mx-auto">
+            <p className="text-base sm:text-xl md:text-2xl text-gray-200 leading-relaxed font-light max-w-3xl mx-auto">
               {t.quote}
             </p>
             <div className="mt-8 flex flex-col items-center gap-2">
