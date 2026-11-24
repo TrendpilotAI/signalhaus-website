@@ -44,7 +44,6 @@ The project uses pnpm. `vercel.json` and CI both install with pnpm.
 |---|---|
 | `content/blog/*.mdx` | Published guides |
 | `content/archive/blog/` | Older posts kept for reference. Nothing here is published |
-| `content/research/questions.md` | The founder questions the guides answer |
 | `content/research/toolkit-copy.md` | Copy angles from the Data-Driven Decision-Making Toolkit |
 | `content/research/removed-claims.md` | Every claim and page removed in the rebuild, and why |
 

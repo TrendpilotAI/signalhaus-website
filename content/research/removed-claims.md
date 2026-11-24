@@ -80,7 +80,7 @@ Pages: `/pricing` is deleted and redirects to `/services`.
 
 | # | Claim | Source | What happened |
 |---|---|---|---|
-| R1 | "60-80% less time on manual workflows" | `src/app/page.tsx:37`, `src/app/case-studies/page.tsx:138`, `src/app/pricing/page.tsx:127`, `content/blog/agentic-automation-future-of-gtm.mdx:32`, `BRAINSTORM.md:27` | Removed from pages. `BRAINSTORM.md` is an internal planning note and is left alone. |
+| R1 | "60-80% less time on manual workflows" | `src/app/page.tsx:37`, `src/app/case-studies/page.tsx:138`, `src/app/pricing/page.tsx:127`, `content/blog/agentic-automation-future-of-gtm.mdx:32`, `BRAINSTORM.md:27` | Removed from pages. `BRAINSTORM.md` was an internal planning note. It has been moved out of this repo (section 14). |
 | R2 | "$50M+ revenue impact" / "$50M+ enterprise value delivered" | `src/app/page.tsx:38`, `src/app/case-studies/page.tsx:139`, `src/app/about/page.tsx:20` | Removed |
 | R3 | "30 days from kickoff to first automation in production", "ROI within 30 days", "in 30 days, not 6 months" | `src/app/page.tsx:39,182`, `src/app/case-studies/page.tsx:140`, `src/app/about/page.tsx:73`, `src/app/layout.tsx:81,100` (site description) | Removed |
 | R4 | "100% client retention - every engagement renews" | `src/app/page.tsx:40`, `src/app/case-studies/page.tsx:141` | Removed |
@@ -180,9 +180,10 @@ None of the five existing posts fits the new positioning. All five are written i
 | ROI maths and its tests | `src/lib/roi.ts`, `src/lib/__tests__/roi.test.ts`, `src/components/ROICalculator.tsx` | Deleted with the calculator (section 9) |
 | Testimonial carousel | `src/components/TestimonialCarousel.tsx` | Deleted with the testimonials (section 8) |
 
-## 14. Left alone on purpose
+## 14. Moved out, and left alone
 
-- `BRAINSTORM.md`, `PLAN.md`, `AUDIT.md` and `DEPLOY.md` are internal planning notes from the old build. `BRAINSTORM.md:27` repeats the "$50M+, 60-80%, 100% retention" line. These files are not served by the site, so they are untouched. The captain may want to delete them, since this repo is public.
+- `BRAINSTORM.md`, `PLAN.md`, `AUDIT.md` and `DEPLOY.md` were internal planning notes from the old build. `BRAINSTORM.md:27` repeated the "$50M+, 60-80%, 100% retention" line. They were never served by the site. On 24 Nov 2026 they were moved, unchanged, to a private repo and deleted from this branch, because this repo is public. The research questions file that sat next to this one moved with them.
+- Deleting them from this branch does not take them out of the git history, and the four planning notes are still on `main` until this branch is merged.
 - The live site is not touched by this branch. Everything in the "Live site" rows stays live until this branch is deployed.
 
 ## Summary
