@@ -144,7 +144,7 @@ export default function ServicesPage() {
               <li key={item.title} className="tile flex flex-col gap-4">
                 <span className="marker">{String(index + 1).padStart(2, "0")}</span>
                 <h3 className="h3">{item.title}</h3>
-                <p className="text-[1.0625rem]">{item.body}</p>
+                <p className="body-sm">{item.body}</p>
               </li>
             ))}
             <li className="callout flex flex-col gap-4 !p-6">
@@ -152,7 +152,7 @@ export default function ServicesPage() {
                 <IconCheck />
               </span>
               <h3 className="h3">Practical tools</h3>
-              <p className="text-[1.0625rem]">
+              <p className="body-sm">
                 We use practical, affordable tools and skip the heavy stack. A sheet is fine to
                 start with.
               </p>
@@ -178,7 +178,7 @@ export default function ServicesPage() {
               <li key={step.title} className="flex flex-col items-start gap-4">
                 <span className="icon-tile">{step.icon}</span>
                 <h3 className="h3">{step.title}</h3>
-                <p className="text-[1.0625rem]">{step.body}</p>
+                <p className="body-sm">{step.body}</p>
               </li>
             ))}
           </ol>
@@ -210,7 +210,7 @@ export default function ServicesPage() {
                 <span className="icon-tile">{way.icon}</span>
                 <h3 className="h3">{way.title}</h3>
                 <p>{way.summary}</p>
-                <ul className="flex flex-col gap-3 pt-2 text-[1.0625rem]">
+                <ul className="flex flex-col gap-3 pt-2 body-sm">
                   {way.points.map((point) => (
                     <li key={point} className="flex gap-3">
                       <IconCheck width={18} height={18} className="mt-[5px] flex-none text-accent" />

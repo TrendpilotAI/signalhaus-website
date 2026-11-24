@@ -21,7 +21,7 @@ export default function PostList({ posts, headingLevel = "h2" }: { posts: PostMe
               {post.title}
             </Link>
           </Heading>
-          <p className="text-[1.0625rem]">{post.excerpt}</p>
+          <p className="body-sm">{post.excerpt}</p>
           <p className="caption mt-auto pt-2">
             <time dateTime={post.date}>{formatDate(post.date)}</time> · {post.readingTime}
           </p>

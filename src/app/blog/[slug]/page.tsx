@@ -141,7 +141,7 @@ export default async function BlogPostPage({ params }: PageProps) {
 
           {headings.length > 0 ? (
             <aside className="order-first lg:order-none">
-              <nav aria-label="On this page" className="tile lg:sticky lg:top-8">
+              <nav aria-label="On this page" className="tile lg:sticky lg:top-24">
                 <p className="eyebrow mb-4">On this page</p>
                 <ol className="flex flex-col gap-3">
                   {headings.map((heading, index) => (
@@ -162,7 +162,7 @@ export default async function BlogPostPage({ params }: PageProps) {
 
         <footer className="page pb-8">
           <div className="quote max-w-[720px]">
-            <p className="text-[1.0625rem]">
+            <p className="body-sm">
               Written by <strong className="font-bold">{post.author}</strong>
               {post.author === SITE.founder.name ? `, an ${SITE.founder.bio}` : "."} Signalhaus is
               his Services-as-Software consulting firm, and there&apos;s more about it on the{" "}

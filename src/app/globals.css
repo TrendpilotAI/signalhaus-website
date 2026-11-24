@@ -30,8 +30,9 @@
   --radius-icon: 5px;
   --radius-button: 7px;
 
-  /* Spacing scale: 4, 8, 12, 16, 24, 32, 46, 64. */
+  /* Spacing scale: 4, 8, 12, 16, 24, 32, 46, 64, 96. */
   --spacing-margin: 46px;
+  /* The distance from one section to the next. 96px from 768px up, set below. */
   --spacing-section: 64px;
 
   --container-page: 1120px;
@@ -39,15 +40,14 @@
 }
 
 @layer base {
-  html {
-    scroll-behavior: smooth;
-    -webkit-text-size-adjust: 100%;
+  @media (min-width: 768px) {
+    :root {
+      --spacing-section: 96px;
+    }
   }
 
-  @media (prefers-reduced-motion: reduce) {
-    html {
-      scroll-behavior: auto;
-    }
+  html {
+    -webkit-text-size-adjust: 100%;
   }
 
   body {
@@ -56,13 +56,7 @@
     font-family: var(--font-sans);
     font-size: 1.125rem;
     line-height: 1.45;
-    overflow-x: hidden;
-  }
-
-  @media (min-width: 768px) {
-    body {
-      font-size: 1.25rem;
-    }
+    overflow-x: clip;
   }
 
   ::selection {
@@ -113,14 +107,16 @@
     }
   }
 
+  /* Two sections in a row each give half, so their content sits one --spacing-section apart. */
   .section {
-    padding-block: var(--spacing-margin);
+    padding-block: calc(var(--spacing-section) / 2);
   }
 
-  @media (min-width: 768px) {
-    .section {
-      padding-block: var(--spacing-section);
-    }
+  /* A full-width tinted band. It keeps the same distance inside as outside. */
+  .band {
+    margin-block: calc(var(--spacing-section) / 2);
+    padding-block: var(--spacing-section);
+    background-color: var(--color-tile);
   }
 
   /* Type roles. Headings are tight, body is open. */
@@ -161,9 +157,15 @@
   }
 
   .lead {
-    font-size: clamp(1.25rem, 1.15rem + 0.5vw, 1.5rem);
+    font-size: 1.25rem;
     line-height: 1.45;
     color: var(--color-ink);
+  }
+
+  /* Supporting text inside tiles, lists and tables. One step under the body size. */
+  .body-sm {
+    font-size: 1.0625rem;
+    line-height: 1.5;
   }
 
   .eyebrow {
@@ -380,16 +382,10 @@
 
   /* Long-form post body. */
   .prose-sh {
+    max-width: 68ch;
     font-size: 1.125rem;
-    line-height: 1.55;
+    line-height: 1.6;
     color: var(--color-ink);
-  }
-
-  @media (min-width: 768px) {
-    .prose-sh {
-      font-size: 1.25rem;
-      line-height: 1.5;
-    }
   }
 
   .prose-sh > * + * {

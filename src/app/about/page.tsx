@@ -102,7 +102,7 @@ export default function AboutPage() {
               <li key={item.title} className="tile flex flex-col items-start gap-4">
                 <span className="icon-tile">{item.icon}</span>
                 <h3 className="h3">{item.title}</h3>
-                <p className="text-[1.0625rem]">{item.body}</p>
+                <p className="body-sm">{item.body}</p>
               </li>
             ))}
           </ul>
