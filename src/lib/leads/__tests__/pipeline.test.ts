@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 import { DEFAULT_FROM, SENDING_DOMAIN, resolveFromAddress } from "../email";
 import { isFlagOn, runLeadPipeline, type LeadEnv, type LeadSink } from "../pipeline";
 import { defaultSinks, lightfieldSink, logSink, protonSink, resendSink, slackSink } from "../sinks";
+import { leadLogEntry, maskEmail } from "../sinks/log";
+import type { Lead } from "../schema";
 import { jsonResponse, makeLead, silentLogger } from "./fixtures";
 
 type FetchMock = ReturnType<typeof vi.fn<typeof fetch>>;
@@ -10,9 +12,14 @@ function okFetch(): FetchMock {
   return vi.fn<typeof fetch>(async () => jsonResponse({ id: "ok" }));
 }
 
-function run(env: LeadEnv, fetchMock: FetchMock = okFetch(), sinks: readonly LeadSink[] = defaultSinks) {
+function run(
+  env: LeadEnv,
+  fetchMock: FetchMock = okFetch(),
+  sinks: readonly LeadSink[] = defaultSinks,
+  lead: Lead = makeLead()
+) {
   const logger = silentLogger();
-  return runLeadPipeline(makeLead(), { sinks, env, fetch: fetchMock, logger }).then((result) => ({
+  return runLeadPipeline(lead, { sinks, env, fetch: fetchMock, logger }).then((result) => ({
     result,
     fetchMock,
     logger,
@@ -38,7 +45,7 @@ describe("isFlagOn", () => {
 });
 
 describe("lead pipeline with nothing configured", () => {
-  it("logs the structured lead, reports success and makes no network calls", async () => {
+  it("logs one line, reports success and makes no network calls", async () => {
     const { result, fetchMock, logger } = await run({});
 
     expect(result.accepted).toBe(true);
@@ -49,14 +56,69 @@ describe("lead pipeline with nothing configured", () => {
     expect(fetchMock).not.toHaveBeenCalled();
 
     expect(logger.info).toHaveBeenCalledTimes(1);
-    const logged = JSON.parse(logger.info.mock.calls[0][1] as string);
-    expect(logged.event).toBe("lead.received");
-    expect(logged.lead).toEqual(makeLead());
+    expect(JSON.parse(logger.info.mock.calls[0][1] as string)).toEqual({
+      event: "lead.received",
+      id: makeLead().id,
+      email: "a***@example.com",
+      topic: "positioning",
+      source: "blog-post",
+      postSlug: "how-to-position-a-startup",
+    });
   });
 
   it("keeps the log sink as the first sink", () => {
     expect(defaultSinks[0]).toBe(logSink);
     expect(logSink.isEnabled({})).toBe(true);
+  });
+});
+
+describe("log sink privacy", () => {
+  it.each([
+    ["jane@acme.com", "j***@acme.com"],
+    ["a@example.org", "a***@example.org"],
+    ["first.last+tag@sub.example.co.uk", "f***@sub.example.co.uk"],
+    ["not-an-address", "***"],
+    ["@example.com", "***"],
+  ])("masks %s as %s", (email, masked) => {
+    expect(maskEmail(email)).toBe(masked);
+  });
+
+  it("logs the masked email, topic, source and slug, and nothing else about the person", async () => {
+    const lead = makeLead({
+      name: "Zelda Quartermaine",
+      email: "zelda.quartermaine@unusual-domain.example",
+      company: "Quartermaine Holdings",
+      role: "Chief Everything Officer",
+      workingOn: "A very private description of the plan.",
+    });
+    expect(Object.keys(leadLogEntry(lead)).sort()).toEqual([
+      "email",
+      "event",
+      "id",
+      "postSlug",
+      "source",
+      "topic",
+    ]);
+
+    const { logger } = await run({}, okFetch(), [logSink], lead);
+    const everythingLogged = JSON.stringify([
+      logger.info.mock.calls,
+      logger.warn.mock.calls,
+      logger.error.mock.calls,
+    ]);
+
+    expect(everythingLogged).toContain("z***@unusual-domain.example");
+    for (const secret of [
+      "Zelda",
+      "Quartermaine",
+      "zelda.quartermaine",
+      "Chief Everything Officer",
+      "very private description",
+      "newsletter",
+      "google.com",
+    ]) {
+      expect(everythingLogged).not.toContain(secret);
+    }
   });
 });
 

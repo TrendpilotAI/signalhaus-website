@@ -31,7 +31,7 @@ function post(body: unknown, ip = "203.0.113.10"): Promise<Response> {
 function loggedLeads(log: { mock: { calls: unknown[][] } }) {
   return log.mock.calls
     .filter((call) => call[0] === "[leads] new lead")
-    .map((call) => JSON.parse(call[1] as string).lead);
+    .map((call) => JSON.parse(call[1] as string));
 }
 
 describe("POST /api/leads", () => {
@@ -55,7 +55,7 @@ describe("POST /api/leads", () => {
   });
 
   describe("stub sink", () => {
-    it("logs the structured lead and returns success", async () => {
+    it("logs a masked line and returns success", async () => {
       const response = await post(validBody());
 
       expect(response.status).toBe(200);
@@ -63,24 +63,14 @@ describe("POST /api/leads", () => {
 
       const leads = loggedLeads(log);
       expect(leads).toHaveLength(1);
-      expect(leads[0]).toMatchObject({
-        name: "Ada Example",
-        email: "ada@example.com",
-        company: "Example Labs",
-        role: "Founder",
+      expect(leads[0]).toEqual({
+        event: "lead.received",
+        id: expect.stringMatching(/^[0-9a-f-]{36}$/),
+        email: "a***@example.com",
         topic: "positioning",
-        workingOn: "Working out which customer segment to go after first.",
-        attribution: {
-          leadSource: "blog-post",
-          pagePath: "/blog/how-to-position-a-startup",
-          postSlug: "how-to-position-a-startup",
-          landingPath: "/",
-          referrer: "https://www.google.com/",
-          utm: { source: "newsletter", medium: "email", campaign: "launch" },
-        },
+        source: "blog-post",
+        postSlug: "how-to-position-a-startup",
       });
-      expect(leads[0].id).toMatch(/^[0-9a-f-]{36}$/);
-      expect(Number.isNaN(Date.parse(leads[0].receivedAt))).toBe(false);
     });
 
     it("sends nothing anywhere when no adapter is configured", async () => {
@@ -182,14 +172,7 @@ describe("POST /api/leads", () => {
       delete body.attribution;
       const response = await post(body);
       expect(response.status).toBe(200);
-      expect(loggedLeads(log)[0].attribution).toEqual({
-        leadSource: "unknown",
-        pagePath: "/",
-        postSlug: null,
-        landingPath: null,
-        referrer: null,
-        utm: {},
-      });
+      expect(loggedLeads(log)[0]).toMatchObject({ source: "unknown", postSlug: null });
     });
   });
 
