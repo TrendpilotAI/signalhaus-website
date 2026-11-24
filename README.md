@@ -74,19 +74,24 @@ Rules the tests in `src/lib/__tests__/posts.test.ts` enforce:
 
 Every form posts to `/api/leads`. The route rate-limits by IP (5 requests per 15 minutes), drops honeypot submissions, validates the fields, then hands the lead to a list of sinks in `src/lib/leads/sinks/`.
 
-| Sink | Runs when |
-|---|---|
-| Log | Always. Writes one line with a masked email, the topic, the source form and the post slug |
-| Resend email | `LEAD_RESEND_ENABLED` is exactly `true` and `RESEND_API_KEY` is set |
-| Proton inbox copy | The Resend sink is on and `LEAD_PROTON_INBOX` is set |
-| Lightfield | `LEAD_LIGHTFIELD_ENABLED` is exactly `true` and `LIGHTFIELD_API_KEY` is set |
-| Slack | `LEAD_SLACK_ENABLED` is exactly `true` and `SLACK_WEBHOOK_URL` is set |
+| Sink | Kind | Switched on by | Also needs |
+|---|---|---|---|
+| Log | Stub | Always on. Writes one line with a masked email, the topic, the source form and the post slug | |
+| Resend email | Record | `LEAD_RESEND_ENABLED` exactly `true` | `RESEND_API_KEY`, `LEAD_NOTIFY_TO` |
+| Proton inbox copy | Record | `LEAD_RESEND_ENABLED` exactly `true` and `LEAD_PROTON_INBOX` set | `RESEND_API_KEY` |
+| Lightfield | Record | `LEAD_LIGHTFIELD_ENABLED` exactly `true` | `LIGHTFIELD_API_KEY`, `LIGHTFIELD_STAGE_LEAD` |
+| Slack | Notify | `LEAD_SLACK_ENABLED` exactly `true` | `SLACK_WEBHOOK_URL` |
 
-With no env vars set, only the log sink runs. A key on its own never turns a sink on.
+A key on its own never turns a sink on.
 
-The log line never holds the name, the message or the full email (`j***@acme.com`, not the address). So with only the log sink running, a submission is acknowledged but not kept anywhere. Turn on at least one other sink before the form goes in front of real visitors.
+The pipeline fails closed, in every environment:
 
-Once any other sink is on, `/api/leads` answers with success only when at least one of them delivered the lead. If every enabled sink fails, it answers 502 and the form shows "Something went wrong on our end, please try again in a minute", with everything the visitor typed still in place. All sinks share one 9 second deadline, and their requests are aborted when it passes.
+- `/api/leads` answers with success only when at least one record sink took the lead.
+- Slack only notifies, so a Slack message on its own does not count. Neither does the log line, which never holds the name, the message or the full email (`j***@acme.com`, not the address).
+- With no record sink switched on, every submission gets an error. That includes local development and Preview, so set up Resend or Lightfield before testing the form end to end.
+- A sink that is switched on without the variables in the last column counts as failed, not skipped. The log says which variables are missing, and nothing about the lead.
+
+When a submission is not accepted, the route answers 502 and the form shows "Something went wrong on our end, please try again in a minute", with everything the visitor typed still in place. All sinks share one 9 second deadline, and their requests are aborted when it passes.
 
 ### Lightfield
 
@@ -94,8 +99,8 @@ The Lightfield sink finds the contact by exact email (ignoring case), finds or c
 
 | Variable | What it does |
 |---|---|
-| `LIGHTFIELD_STAGE_LEAD` | Stage for a new opportunity. Use the option id of the Lead stage in the Signalhaus pipeline, which picks the stage and the pipeline together. A label works too, but alone it is looked up in the default pipeline. Left empty, no stage is set |
-| `LIGHTFIELD_PIPELINE_OPTION` | Pipeline for a new opportunity: its id or name. Lightfield rejects a pipeline without a stage, so this is only sent together with `LIGHTFIELD_STAGE_LEAD` |
+| `LIGHTFIELD_STAGE_LEAD` | Stage for a new opportunity. Use the option id of the Lead stage in the Signalhaus pipeline, which picks the stage and the pipeline together. A label works too, but alone it is looked up in the default pipeline. Required: with Lightfield switched on and this empty, the sink counts as failed |
+| `LIGHTFIELD_PIPELINE_OPTION` | Optional. Pipeline for a new opportunity: its id or name. Only needed when `LIGHTFIELD_STAGE_LEAD` is a label |
 | `LIGHTFIELD_OPPORTUNITY_DESCRIPTION_FIELD` | Key of the opportunity field that gets the description (source, page, post slug, topic, UTM, message). Opportunities have no such field until one is added in Lightfield. The note carries the same details either way |
 
 Email is sent from `send.signalhaus.ai`. A From address on any other domain is ignored and the default `leads@send.signalhaus.ai` is used instead.
@@ -104,7 +109,7 @@ Each lead carries its source form, the page path, the post slug, the first page 
 
 ## Environment variables
 
-`.env.example` lists every variable with a description. None are required to run the site. Analytics tags (Google Analytics, Microsoft Clarity, LinkedIn Insight) render only when their `NEXT_PUBLIC_*` id is set.
+`.env.example` lists every variable with a description. None are required to build or browse the site. The lead forms need a record sink, as described above. Analytics tags (Google Analytics, Microsoft Clarity, LinkedIn Insight) render only when their `NEXT_PUBLIC_*` id is set.
 
 Without the Upstash variables the rate limiter falls back to memory, which does not hold across serverless instances. Set them in production.
 

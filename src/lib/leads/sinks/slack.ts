@@ -1,11 +1,7 @@
-import { isFlagOn, type LeadEnv, type LeadSink } from "../pipeline";
+import { isFlagOn, readiness, type LeadSink } from "../pipeline";
 import { topicLabel } from "../schema";
 
 const MESSAGE_PREVIEW_LENGTH = 500;
-
-export function isSlackEnabled(env: LeadEnv): boolean {
-  return isFlagOn(env.LEAD_SLACK_ENABLED) && Boolean(env.SLACK_WEBHOOK_URL);
-}
 
 /** Slack reads &, < and > as control characters in mrkdwn. */
 function escapeSlack(value: string): string {
@@ -14,12 +10,17 @@ function escapeSlack(value: string): string {
 
 /**
  * Slack notification through an incoming webhook.
- * Off unless LEAD_SLACK_ENABLED is exactly "true" and SLACK_WEBHOOK_URL is set.
+ * Off unless LEAD_SLACK_ENABLED is exactly "true". Once it is, it needs
+ * SLACK_WEBHOOK_URL.
+ *
+ * Slack only notifies. A message in a channel is not where a lead is kept, so
+ * a Slack delivery on its own never makes a submission count.
  */
 export const slackSink: LeadSink = {
   name: "slack",
-  kind: "real",
-  isEnabled: isSlackEnabled,
+  kind: "notify",
+  readiness: (env) =>
+    readiness(isFlagOn(env.LEAD_SLACK_ENABLED), env.SLACK_WEBHOOK_URL ? [] : ["SLACK_WEBHOOK_URL"]),
   async deliver(lead, { env, fetch }) {
     const webhookUrl = env.SLACK_WEBHOOK_URL;
     if (!webhookUrl) throw new Error("SLACK_WEBHOOK_URL is not set");

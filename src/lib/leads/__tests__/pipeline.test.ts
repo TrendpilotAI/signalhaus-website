@@ -1,6 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_FROM, SENDING_DOMAIN, resolveFromAddress } from "../email";
-import { SINK_TIMEOUT_MS, isFlagOn, runLeadPipeline, type LeadEnv, type LeadSink } from "../pipeline";
+import {
+  SINK_TIMEOUT_MS,
+  isFlagOn,
+  readiness,
+  runLeadPipeline,
+  type LeadEnv,
+  type LeadSink,
+} from "../pipeline";
 import { defaultSinks, lightfieldSink, logSink, protonSink, resendSink, slackSink } from "../sinks";
 import {
   LIGHTFIELD_DEADLINE_MS,
@@ -64,10 +71,11 @@ describe("isFlagOn", () => {
 });
 
 describe("lead pipeline with nothing configured", () => {
-  it("logs one line, reports success and makes no network calls", async () => {
+  it("logs one line, turns the lead away and makes no network calls", async () => {
     const { result, fetchMock, logger } = await run({});
 
-    expect(result.accepted).toBe(true);
+    expect(result.accepted).toBe(false);
+    expect(result.rejection).toBe("no-record-sink-enabled");
     expect(statusOf(result.results, "log")).toBe("delivered");
     for (const sink of ["resend", "proton", "lightfield", "slack"]) {
       expect(statusOf(result.results, sink)).toBe("skipped");
@@ -87,7 +95,7 @@ describe("lead pipeline with nothing configured", () => {
 
   it("keeps the log sink as the first sink, and as the only stub", () => {
     expect(defaultSinks[0]).toBe(logSink);
-    expect(logSink.isEnabled({})).toBe(true);
+    expect(logSink.readiness({})).toEqual({ state: "ready" });
     expect(defaultSinks.filter((sink) => sink.kind === "stub")).toEqual([logSink]);
   });
 });
@@ -160,12 +168,24 @@ describe("resend adapter gating", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("stays off when the flag is on but there is no API key or no recipient", () => {
-    expect(resendSink.isEnabled({ LEAD_RESEND_ENABLED: "true" })).toBe(false);
-    expect(resendSink.isEnabled({ LEAD_RESEND_ENABLED: "true", RESEND_API_KEY: "re_test" })).toBe(false);
-    expect(
-      resendSink.isEnabled({ LEAD_RESEND_ENABLED: "true", LEAD_NOTIFY_TO: "nathan@example.com" })
-    ).toBe(false);
+  it.each<[string, LeadEnv, string[]]>([
+    ["no API key and no recipient", {}, ["RESEND_API_KEY", "LEAD_NOTIFY_TO"]],
+    ["no recipient", { RESEND_API_KEY: "re_test" }, ["LEAD_NOTIFY_TO"]],
+    ["a recipient that is not an address", { RESEND_API_KEY: "re_test", LEAD_NOTIFY_TO: "nathan" }, ["LEAD_NOTIFY_TO"]],
+    ["no API key", { LEAD_NOTIFY_TO: "nathan@example.com" }, ["RESEND_API_KEY"]],
+  ])("fails, without sending, when the flag is on with %s", async (_case, env, missing) => {
+    const on = { ...env, LEAD_RESEND_ENABLED: "true" };
+    expect(resendSink.readiness(on)).toEqual({ state: "misconfigured", missing });
+
+    const { result, fetchMock } = await run(on);
+    expect(result.results.find((r) => r.sink === "resend")).toEqual({
+      sink: "resend",
+      status: "failed",
+      error: `Not configured. Missing or invalid: ${missing.join(", ")}`,
+    });
+    expect(result.accepted).toBe(false);
+    expect(result.rejection).toBe("no-record-sink-accepted");
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("sends from the sending subdomain when the flag is exactly true", async () => {
@@ -246,13 +266,32 @@ describe("proton inbox adapter gating", () => {
   });
 
   it("is off when no Proton address is set", () => {
-    expect(protonSink.isEnabled({ LEAD_RESEND_ENABLED: "true", RESEND_API_KEY: "re_test" })).toBe(false);
+    for (const inbox of [undefined, "", "  "]) {
+      expect(
+        protonSink.readiness({ LEAD_RESEND_ENABLED: "true", RESEND_API_KEY: "re_test", LEAD_PROTON_INBOX: inbox })
+      ).toEqual({ state: "off" });
+    }
+  });
+
+  it.each<[string, LeadEnv, string[]]>([
+    ["no API key", { LEAD_PROTON_INBOX: "nathan@proton.me" }, ["RESEND_API_KEY"]],
+    ["an inbox that is not an address", { RESEND_API_KEY: "re_test", LEAD_PROTON_INBOX: "proton" }, ["LEAD_PROTON_INBOX"]],
+  ])("fails, without sending, when the flag is on with %s", async (_case, env, missing) => {
+    const { result, fetchMock } = await run({ ...env, LEAD_RESEND_ENABLED: "true" }, okFetch(), [protonSink]);
+    expect(result.results[0]).toEqual({
+      sink: "proton",
+      status: "failed",
+      error: `Not configured. Missing or invalid: ${missing.join(", ")}`,
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("sends a copy to the Proton inbox when enabled", async () => {
     const { result, fetchMock } = await run({ ...base, LEAD_RESEND_ENABLED: "true" });
     expect(statusOf(result.results, "proton")).toBe("delivered");
-    expect(statusOf(result.results, "resend")).toBe("skipped");
+    // The main email is switched on by the same flag and has no recipient here.
+    expect(statusOf(result.results, "resend")).toBe("failed");
+    expect(result.accepted).toBe(true);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const body = sentBody(fetchMock);
     expect(body.to).toEqual(["nathan@proton.me"]);
@@ -275,7 +314,7 @@ describe("lightfield adapter gating", () => {
   it.each<LeadEnv>([
     {},
     { LIGHTFIELD_API_KEY: "lf_test" },
-    { LEAD_LIGHTFIELD_ENABLED: "true" },
+    { LIGHTFIELD_API_KEY: "lf_test", LIGHTFIELD_STAGE_LEAD: "opt_lead" },
     { LIGHTFIELD_API_KEY: "lf_test", LEAD_LIGHTFIELD_ENABLED: "false" },
     { LIGHTFIELD_API_KEY: "lf_test", LEAD_LIGHTFIELD_ENABLED: "TRUE" },
   ])("is off for %j", async (env) => {
@@ -284,7 +323,32 @@ describe("lightfield adapter gating", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  const enabled: LeadEnv = { LIGHTFIELD_API_KEY: "lf_test", LEAD_LIGHTFIELD_ENABLED: "true" };
+  it.each<[string, LeadEnv, string[]]>([
+    ["no key and no stage", {}, ["LIGHTFIELD_API_KEY", "LIGHTFIELD_STAGE_LEAD"]],
+    ["no key", { LIGHTFIELD_STAGE_LEAD: "opt_lead" }, ["LIGHTFIELD_API_KEY"]],
+    ["no stage", { LIGHTFIELD_API_KEY: "lf_test" }, ["LIGHTFIELD_STAGE_LEAD"]],
+    ["a blank stage", { LIGHTFIELD_API_KEY: "lf_test", LIGHTFIELD_STAGE_LEAD: "  " }, ["LIGHTFIELD_STAGE_LEAD"]],
+    [
+      "a pipeline but no stage",
+      { LIGHTFIELD_API_KEY: "lf_test", LIGHTFIELD_PIPELINE_OPTION: "pd_signalhaus" },
+      ["LIGHTFIELD_STAGE_LEAD"],
+    ],
+  ])("fails, without calling Lightfield, when the flag is on with %s", async (_case, env, missing) => {
+    const { result, fetchMock } = await run({ ...env, LEAD_LIGHTFIELD_ENABLED: "true" });
+    expect(result.results.find((r) => r.sink === "lightfield")).toEqual({
+      sink: "lightfield",
+      status: "failed",
+      error: `Not configured. Missing or invalid: ${missing.join(", ")}`,
+    });
+    expect(result.accepted).toBe(false);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  const enabled: LeadEnv = {
+    LIGHTFIELD_API_KEY: "lf_test",
+    LEAD_LIGHTFIELD_ENABLED: "true",
+    LIGHTFIELD_STAGE_LEAD: "opt_lead",
+  };
 
   const STAGES = [
     { id: "opt_lead", label: "Lead", category: "ACTIVE" },
@@ -397,7 +461,7 @@ describe("lightfield adapter gating", () => {
       skipEnrichment: true,
     });
     expect(made[4].body).toEqual({
-      fields: { $name: "Signalhaus · Positioning · Example Labs" },
+      fields: { $name: "Signalhaus · Positioning · Example Labs", $stage: "opt_lead" },
       relationships: { $account: "new_accounts" },
     });
     expect(made[5].body.relationships).toEqual({
@@ -503,11 +567,7 @@ describe("lightfield adapter gating", () => {
 
     it("sets the stage and the pipeline when both are configured", async () => {
       const fetchMock = lightfieldFetch({});
-      await run(
-        { ...enabled, LIGHTFIELD_PIPELINE_OPTION: "pd_signalhaus", LIGHTFIELD_STAGE_LEAD: "opt_lead" },
-        fetchMock,
-        [lightfieldSink]
-      );
+      await run({ ...enabled, LIGHTFIELD_PIPELINE_OPTION: "pd_signalhaus" }, fetchMock, [lightfieldSink]);
       expect(calls(fetchMock)[4].body.fields).toEqual({
         $name: "Signalhaus · Positioning · Example Labs",
         $pipeline: "pd_signalhaus",
@@ -516,29 +576,21 @@ describe("lightfield adapter gating", () => {
     });
 
     it("sets only the stage when no pipeline is configured", () => {
-      const logger = silentLogger();
-      expect(stageFields({ env: { LIGHTFIELD_STAGE_LEAD: " opt_lead " }, logger })).toEqual({
+      expect(stageFields({ LIGHTFIELD_STAGE_LEAD: " opt_lead " })).toEqual({ $stage: "opt_lead" });
+      expect(stageFields({ LIGHTFIELD_STAGE_LEAD: "opt_lead", LIGHTFIELD_PIPELINE_OPTION: " " })).toEqual({
         $stage: "opt_lead",
       });
-      expect(logger.warn).not.toHaveBeenCalled();
     });
 
-    it("sends neither when only the pipeline is configured, because Lightfield rejects that", () => {
-      const logger = silentLogger();
-      expect(stageFields({ env: { LIGHTFIELD_PIPELINE_OPTION: "pd_signalhaus" }, logger })).toEqual({});
-      expect(logger.warn).toHaveBeenCalledTimes(1);
-    });
-
-    it("sends neither, and says nothing, when neither is configured", () => {
-      const logger = silentLogger();
-      expect(stageFields({ env: { LIGHTFIELD_PIPELINE_OPTION: " ", LIGHTFIELD_STAGE_LEAD: "" }, logger })).toEqual({});
-      expect(logger.warn).not.toHaveBeenCalled();
+    it("never builds an opportunity without a stage", () => {
+      expect(() => stageFields({})).toThrow("LIGHTFIELD_STAGE_LEAD is not set");
+      expect(() => stageFields({ LIGHTFIELD_PIPELINE_OPTION: "pd_signalhaus" })).toThrow();
     });
 
     it("writes the description to the configured field only", async () => {
       const without = lightfieldFetch({});
       await run(enabled, without, [lightfieldSink]);
-      expect(Object.keys(calls(without)[4].body.fields)).toEqual(["$name"]);
+      expect(Object.keys(calls(without)[4].body.fields)).toEqual(["$name", "$stage"]);
 
       const withField = lightfieldFetch({});
       await run({ ...enabled, LIGHTFIELD_OPPORTUNITY_DESCRIPTION_FIELD: "description" }, withField, [
@@ -731,10 +783,20 @@ describe("lightfield adapter gating", () => {
 });
 
 describe("slack adapter gating", () => {
-  it("is off unless the flag and the webhook are both set", async () => {
-    expect(slackSink.isEnabled({ SLACK_WEBHOOK_URL: "https://hooks.slack.test/x" })).toBe(false);
-    expect(slackSink.isEnabled({ LEAD_SLACK_ENABLED: "true" })).toBe(false);
-    const { fetchMock } = await run({ SLACK_WEBHOOK_URL: "https://hooks.slack.test/x" });
+  it("is off without the flag, even with a webhook", async () => {
+    expect(slackSink.readiness({ SLACK_WEBHOOK_URL: "https://hooks.slack.test/x" })).toEqual({ state: "off" });
+    const { result, fetchMock } = await run({ SLACK_WEBHOOK_URL: "https://hooks.slack.test/x" });
+    expect(statusOf(result.results, "slack")).toBe("skipped");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("fails when the flag is on and there is no webhook", async () => {
+    const { result, fetchMock } = await run({ LEAD_SLACK_ENABLED: "true" });
+    expect(result.results.find((r) => r.sink === "slack")).toEqual({
+      sink: "slack",
+      status: "failed",
+      error: "Not configured. Missing or invalid: SLACK_WEBHOOK_URL",
+    });
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -754,36 +816,111 @@ describe("which deliveries count", () => {
     RESEND_API_KEY: "re_test",
     LEAD_NOTIFY_TO: "nathan@example.com",
   };
+  const protonOn: LeadEnv = {
+    LEAD_RESEND_ENABLED: "true",
+    RESEND_API_KEY: "re_test",
+    LEAD_PROTON_INBOX: "nathan@proton.me",
+  };
   const slackOn: LeadEnv = { LEAD_SLACK_ENABLED: "true", SLACK_WEBHOOK_URL: "https://hooks.slack.test/x" };
-  const lightfieldOn: LeadEnv = { LIGHTFIELD_API_KEY: "lf_test", LEAD_LIGHTFIELD_ENABLED: "true" };
+  const lightfieldOn: LeadEnv = {
+    LIGHTFIELD_API_KEY: "lf_test",
+    LEAD_LIGHTFIELD_ENABLED: "true",
+    LIGHTFIELD_STAGE_LEAD: "opt_lead",
+  };
 
   function failing(): FetchMock {
     return vi.fn<typeof fetch>(async () => jsonResponse({ message: "nope" }, 500));
   }
 
-  it("marks every sink except the log as real", () => {
-    expect(
-      Object.fromEntries(defaultSinks.map((sink) => [sink.name, sink.kind]))
-    ).toEqual({ log: "stub", resend: "real", proton: "real", lightfield: "real", slack: "real" });
+  /** Fails every request whose URL contains one of these, and answers the rest. */
+  function failingFor(...hosts: string[]): FetchMock {
+    return vi.fn<typeof fetch>(async (input) =>
+      hosts.some((host) => String(input).includes(host))
+        ? jsonResponse({ message: "nope" }, 500)
+        : jsonResponse({ id: "ok", data: [] })
+    );
+  }
+
+  it("treats Resend, the Proton copy and Lightfield as record sinks, and Slack as notify-only", () => {
+    expect(Object.fromEntries(defaultSinks.map((sink) => [sink.name, sink.kind]))).toEqual({
+      log: "stub",
+      resend: "record",
+      proton: "record",
+      lightfield: "record",
+      slack: "notify",
+    });
   });
 
-  it("accepts on the log alone when no real sink is enabled", async () => {
-    const { result } = await run({});
-    expect(result.accepted).toBe(true);
+  describe("with no record sink switched on", () => {
+    it("is not accepted on the log alone", async () => {
+      const { result } = await run({});
+      expect(statusOf(result.results, "log")).toBe("delivered");
+      expect(result.accepted).toBe(false);
+      expect(result.rejection).toBe("no-record-sink-enabled");
+    });
+
+    it("is not accepted when Slack delivers", async () => {
+      const { result, fetchMock } = await run(slackOn);
+      expect(statusOf(result.results, "slack")).toBe("delivered");
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(result.accepted).toBe(false);
+      expect(result.rejection).toBe("no-record-sink-enabled");
+    });
+
+    it("is not accepted when keys are present but every switch is off", async () => {
+      const { result, fetchMock } = await run({
+        RESEND_API_KEY: "re_test",
+        LEAD_NOTIFY_TO: "nathan@example.com",
+        LEAD_PROTON_INBOX: "nathan@proton.me",
+        LIGHTFIELD_API_KEY: "lf_test",
+        LIGHTFIELD_STAGE_LEAD: "opt_lead",
+        SLACK_WEBHOOK_URL: "https://hooks.slack.test/x",
+      });
+      expect(result.accepted).toBe(false);
+      expect(result.rejection).toBe("no-record-sink-enabled");
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it("is not accepted by a stub or a notify sink of any kind", async () => {
+      const always = (name: string, kind: LeadSink["kind"]): LeadSink => ({
+        name,
+        kind,
+        readiness: () => ({ state: "ready" }),
+        deliver: async () => {},
+      });
+      const result = await runLeadPipeline(makeLead(), {
+        sinks: [always("stub", "stub"), always("notify", "notify")],
+        env: {},
+        logger: silentLogger(),
+      });
+      expect(result.results.map((r) => r.status)).toEqual(["delivered", "delivered"]);
+      expect(result.accepted).toBe(false);
+    });
   });
 
   it.each([
     ["Resend", resendOn],
-    ["Slack", slackOn],
+    ["the Proton copy", protonOn],
     ["Lightfield", lightfieldOn],
-  ])("is not accepted when %s is the only real sink and it fails", async (_name, env) => {
+  ])("is accepted when %s is the only record sink and it delivers", async (_name, env) => {
+    const { result } = await run(env, failingFor());
+    expect(result.accepted).toBe(true);
+    expect(result.rejection).toBeNull();
+  });
+
+  it.each([
+    ["Resend", resendOn],
+    ["the Proton copy", protonOn],
+    ["Lightfield", lightfieldOn],
+  ])("is not accepted when %s is the only record sink and it fails", async (_name, env) => {
     const { result, logger } = await run(env, failing());
     expect(result.accepted).toBe(false);
+    expect(result.rejection).toBe("no-record-sink-accepted");
     expect(statusOf(result.results, "log")).toBe("delivered");
     expect(logger.error).toHaveBeenCalled();
   });
 
-  it("is not accepted when a real sink throws", async () => {
+  it("is not accepted when a record sink throws", async () => {
     const throwing = vi.fn<typeof fetch>(async () => {
       throw new Error("network down");
     });
@@ -796,17 +933,29 @@ describe("which deliveries count", () => {
     });
   });
 
-  it("is accepted when one real sink delivers and another fails", async () => {
-    const slackDown = vi.fn<typeof fetch>(async (input) =>
-      String(input).includes("slack") ? jsonResponse({}, 500) : jsonResponse({ id: "ok" })
-    );
-    const { result } = await run({ ...resendOn, ...slackOn }, slackDown);
+  it("is not accepted when the record sink fails and Slack delivers", async () => {
+    const { result } = await run({ ...resendOn, ...slackOn }, failingFor("api.resend.com"));
+    expect(statusOf(result.results, "resend")).toBe("failed");
+    expect(statusOf(result.results, "slack")).toBe("delivered");
+    expect(result.accepted).toBe(false);
+    expect(result.rejection).toBe("no-record-sink-accepted");
+  });
+
+  it("is accepted when the record sink delivers and Slack fails", async () => {
+    const { result } = await run({ ...resendOn, ...slackOn }, failingFor("slack"));
     expect(statusOf(result.results, "resend")).toBe("delivered");
     expect(statusOf(result.results, "slack")).toBe("failed");
     expect(result.accepted).toBe(true);
   });
 
-  it("is not accepted when every enabled real sink fails", async () => {
+  it("is accepted when one record sink delivers and another fails", async () => {
+    const { result } = await run({ ...resendOn, ...lightfieldOn }, failingFor("api.lightfield.app"));
+    expect(statusOf(result.results, "resend")).toBe("delivered");
+    expect(statusOf(result.results, "lightfield")).toBe("failed");
+    expect(result.accepted).toBe(true);
+  });
+
+  it("is not accepted when every enabled sink fails", async () => {
     const { result } = await run({ ...resendOn, ...slackOn, ...lightfieldOn }, failing());
     expect(result.accepted).toBe(false);
     for (const sink of ["resend", "slack", "lightfield"]) {
@@ -814,26 +963,11 @@ describe("which deliveries count", () => {
     }
   });
 
-  it("is accepted when the real sink delivers", async () => {
-    const { result } = await run(resendOn);
-    expect(result.accepted).toBe(true);
-  });
-
-  it("counts the Proton copy as a real delivery", async () => {
-    const { result } = await run({
-      LEAD_RESEND_ENABLED: "true",
-      RESEND_API_KEY: "re_test",
-      LEAD_PROTON_INBOX: "nathan@proton.me",
-    });
-    expect(statusOf(result.results, "proton")).toBe("delivered");
-    expect(result.accepted).toBe(true);
-  });
-
-  it("counts a real sink whose isEnabled throws as enabled and failed", async () => {
+  it("counts a record sink whose readiness check throws as failed", async () => {
     const broken: LeadSink = {
       name: "broken",
-      kind: "real",
-      isEnabled: () => {
+      kind: "record",
+      readiness: () => {
         throw new Error("bad config");
       },
       deliver: async () => {},
@@ -844,23 +978,86 @@ describe("which deliveries count", () => {
       logger: silentLogger(),
     });
     expect(result.accepted).toBe(false);
+    expect(result.rejection).toBe("no-record-sink-accepted");
+  });
+});
+
+describe("a sink that is switched on but not configured", () => {
+  it("reports off, ready or misconfigured from the switch and what is missing", () => {
+    expect(readiness(false, [])).toEqual({ state: "off" });
+    expect(readiness(false, ["SOME_KEY"])).toEqual({ state: "off" });
+    expect(readiness(true, [])).toEqual({ state: "ready" });
+    expect(readiness(true, ["SOME_KEY"])).toEqual({ state: "misconfigured", missing: ["SOME_KEY"] });
   });
 
-  it("is not accepted when the only sink fails", async () => {
-    const broken: LeadSink = {
-      name: "broken",
-      kind: "stub",
-      isEnabled: () => true,
-      deliver: async () => {
-        throw new Error("boom");
-      },
+  it("counts as failed, not skipped, and is never delivered to", async () => {
+    const deliver = vi.fn(async () => {});
+    const half: LeadSink = {
+      name: "half",
+      kind: "record",
+      readiness: () => ({ state: "misconfigured", missing: ["HALF_API_KEY"] }),
+      deliver,
     };
-    const result = await runLeadPipeline(makeLead(), {
-      sinks: [broken],
-      env: {},
-      logger: silentLogger(),
-    });
+    const result = await runLeadPipeline(makeLead(), { sinks: [half], env: {}, logger: silentLogger() });
+
+    expect(result.results).toEqual([
+      { sink: "half", status: "failed", error: "Not configured. Missing or invalid: HALF_API_KEY" },
+    ]);
+    expect(deliver).not.toHaveBeenCalled();
     expect(result.accepted).toBe(false);
+    expect(result.rejection).toBe("no-record-sink-accepted");
+  });
+
+  it("is logged as a misconfiguration, naming the variables and nothing about the lead", async () => {
+    const lead = makeLead({
+      name: "Zelda Quartermaine",
+      email: "zelda.quartermaine@unusual-domain.example",
+      company: "Quartermaine Holdings",
+      workingOn: "A very private description of the plan.",
+    });
+    const env: LeadEnv = {
+      LEAD_RESEND_ENABLED: "true",
+      RESEND_API_KEY: "re_secret_value",
+      LEAD_LIGHTFIELD_ENABLED: "true",
+      LIGHTFIELD_API_KEY: "lf_secret_value",
+      LEAD_SLACK_ENABLED: "true",
+    };
+    const { logger, fetchMock } = await run(env, okFetch(), defaultSinks, lead);
+
+    expect(logger.error.mock.calls).toEqual([
+      ['[leads] sink "resend" is switched on but not configured', { missing: ["LEAD_NOTIFY_TO"] }],
+      ['[leads] sink "lightfield" is switched on but not configured', { missing: ["LIGHTFIELD_STAGE_LEAD"] }],
+      ['[leads] sink "slack" is switched on but not configured', { missing: ["SLACK_WEBHOOK_URL"] }],
+    ]);
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    const everythingLogged = JSON.stringify([
+      logger.info.mock.calls,
+      logger.warn.mock.calls,
+      logger.error.mock.calls,
+    ]);
+    for (const secret of [
+      "Zelda",
+      "Quartermaine",
+      "zelda.quartermaine",
+      "very private description",
+      "re_secret_value",
+      "lf_secret_value",
+    ]) {
+      expect(everythingLogged).not.toContain(secret);
+    }
+  });
+
+  it("does not stop a record sink that is configured from taking the lead", async () => {
+    const { result } = await run({
+      LEAD_RESEND_ENABLED: "true",
+      RESEND_API_KEY: "re_test",
+      LEAD_NOTIFY_TO: "nathan@example.com",
+      LEAD_LIGHTFIELD_ENABLED: "true",
+    });
+    expect(statusOf(result.results, "lightfield")).toBe("failed");
+    expect(statusOf(result.results, "resend")).toBe("delivered");
+    expect(result.accepted).toBe(true);
   });
 });
 
@@ -911,8 +1108,8 @@ describe("the shared deadline", () => {
     const seen: AbortSignal[] = [];
     const sink: LeadSink = {
       name: "own-signal",
-      kind: "real",
-      isEnabled: () => true,
+      kind: "record",
+      readiness: () => ({ state: "ready" }),
       deliver: async (_lead, ctx) => {
         await ctx.fetch("https://example.test/", { signal: own.signal });
       },
@@ -932,8 +1129,8 @@ describe("the shared deadline", () => {
     let signal: AbortSignal | undefined;
     const hanging: LeadSink = {
       name: "hanging",
-      kind: "real",
-      isEnabled: () => true,
+      kind: "record",
+      readiness: () => ({ state: "ready" }),
       deliver: (_lead, ctx) => {
         signal = ctx.signal;
         return new Promise<void>(() => {});

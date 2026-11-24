@@ -18,16 +18,33 @@ export interface SinkContext {
 }
 
 /**
- * A "real" sink puts the lead in front of a person or into a system of record.
- * A "stub" sink only records that a lead arrived.
+ * A "record" sink keeps the lead where it will be read and can be found again:
+ * an inbox or the CRM. Only a record sink can make a submission count.
+ * A "notify" sink pings somebody that a lead arrived. It is not where the lead lives.
+ * A "stub" sink only notes that a lead arrived, and keeps nothing about the person.
  */
-export type SinkKind = "real" | "stub";
+export type SinkKind = "record" | "notify" | "stub";
+
+export type SinkReadiness =
+  | { state: "off" }
+  | { state: "ready" }
+  /** Switched on, but these env vars are missing or not usable. */
+  | { state: "misconfigured"; missing: string[] };
+
+/** Off when the switch is off. Otherwise ready, unless something it needs is missing. */
+export function readiness(switchedOn: boolean, missing: string[]): SinkReadiness {
+  if (!switchedOn) return { state: "off" };
+  return missing.length > 0 ? { state: "misconfigured", missing } : { state: "ready" };
+}
 
 export interface LeadSink {
   name: string;
   kind: SinkKind;
-  /** A sink that is not enabled is skipped and never touches the network. */
-  isEnabled(env: LeadEnv): boolean;
+  /**
+   * A sink that is off is skipped and never touches the network. A sink that
+   * is switched on without the config it needs counts as failed.
+   */
+  readiness(env: LeadEnv): SinkReadiness;
   deliver(lead: Lead, ctx: SinkContext): Promise<void>;
 }
 
@@ -39,12 +56,17 @@ export interface SinkResult {
   error?: string;
 }
 
+export type PipelineRejection =
+  /** Every record sink is off, so there was nowhere to keep the lead. */
+  | "no-record-sink-enabled"
+  /** At least one record sink is on, and none of them took the lead. */
+  | "no-record-sink-accepted";
+
 export interface PipelineResult {
-  /**
-   * True when the lead reached somebody. With a real sink enabled, that means
-   * at least one real sink delivered. With none enabled, the stub is enough.
-   */
+  /** True only when at least one record sink delivered the lead. */
   accepted: boolean;
+  /** Why the lead was not accepted. Null when it was. */
+  rejection: PipelineRejection | null;
   results: SinkResult[];
 }
 
@@ -75,9 +97,12 @@ export interface PipelineOptions {
 }
 
 /**
- * Runs every enabled sink side by side. One sink failing never stops the
- * others. The lead counts as accepted when a real sink delivered it, or when
- * no real sink is enabled and the stub logged it.
+ * Runs every sink that is ready, side by side. One sink failing never stops
+ * the others.
+ *
+ * The pipeline fails closed. The lead counts as accepted only when a record
+ * sink delivered it. A notification, or the line in the log, never makes a
+ * submission count, and neither does having no record sink switched on.
  */
 export async function runLeadPipeline(lead: Lead, options: PipelineOptions): Promise<PipelineResult> {
   const logger = options.logger ?? consoleLogger;
@@ -105,13 +130,24 @@ export async function runLeadPipeline(lead: Lead, options: PipelineOptions): Pro
     const outcomes = await Promise.all(
       options.sinks.map(async (sink): Promise<SinkResult & { kind: SinkKind }> => {
         const base = { sink: sink.name, kind: sink.kind };
-        let enabled = false;
+        let ready: SinkReadiness;
         try {
-          enabled = sink.isEnabled(ctx.env);
+          ready = sink.readiness(ctx.env);
         } catch (err) {
           return { ...base, status: "failed", error: errorMessage(err) };
         }
-        if (!enabled) return { ...base, status: "skipped" };
+        if (ready.state === "off") return { ...base, status: "skipped" };
+        if (ready.state === "misconfigured") {
+          // Names of env vars only. Never their values, and nothing about the lead.
+          logger.error(`[leads] sink "${sink.name}" is switched on but not configured`, {
+            missing: ready.missing,
+          });
+          return {
+            ...base,
+            status: "failed",
+            error: `Not configured. Missing or invalid: ${ready.missing.join(", ")}`,
+          };
+        }
 
         try {
           await untilAborted(sink.deliver(lead, ctx), deadline.signal);
@@ -124,11 +160,17 @@ export async function runLeadPipeline(lead: Lead, options: PipelineOptions): Pro
       })
     );
 
-    const enabledReal = outcomes.filter((o) => o.kind === "real" && o.status !== "skipped");
-    const deciding = enabledReal.length > 0 ? enabledReal : outcomes;
+    const record = outcomes.filter((o) => o.kind === "record");
+    const accepted = record.some((o) => o.status === "delivered");
+    const rejection: PipelineRejection | null = accepted
+      ? null
+      : record.every((o) => o.status === "skipped")
+        ? "no-record-sink-enabled"
+        : "no-record-sink-accepted";
 
     return {
-      accepted: deciding.some((o) => o.status === "delivered"),
+      accepted,
+      rejection,
       results: outcomes.map(({ sink, status, error }) =>
         error === undefined ? { sink, status } : { sink, status, error }
       ),

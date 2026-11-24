@@ -26,13 +26,13 @@ export function leadLogEntry(lead: Lead) {
 
 /**
  * The stub sink. It is always on and writes one line to the server log to
- * show that a lead arrived. It does not keep the lead itself, so the lead is
- * only kept once a real sink is switched on.
+ * show that a lead arrived. It does not keep the lead itself, so it never
+ * makes a submission count. Only a record sink does that.
  */
 export const logSink: LeadSink = {
   name: "log",
   kind: "stub",
-  isEnabled: () => true,
+  readiness: () => ({ state: "ready" }),
   async deliver(lead, { logger }) {
     logger.info("[leads] new lead", JSON.stringify(leadLogEntry(lead)));
   },

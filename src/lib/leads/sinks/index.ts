@@ -7,8 +7,9 @@ import { slackSink } from "./slack";
 
 /**
  * The lead pipeline. The log sink is the only one that is always on.
- * Every other sink is a no-op until its env vars are set. To add a sink,
- * implement LeadSink and append it here.
+ * Every other sink is off until its switch is set. A submission only counts
+ * once a record sink (Resend, the Proton copy or Lightfield) has it.
+ * To add a sink, implement LeadSink and append it here.
  */
 export const defaultSinks: readonly LeadSink[] = [
   logSink,

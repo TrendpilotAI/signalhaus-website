@@ -1,5 +1,12 @@
 import { leadSummaryRows } from "../email";
-import { SINK_TIMEOUT_MS, isFlagOn, type LeadEnv, type LeadSink, type SinkContext } from "../pipeline";
+import {
+  SINK_TIMEOUT_MS,
+  isFlagOn,
+  readiness,
+  type LeadEnv,
+  type LeadSink,
+  type SinkContext,
+} from "../pipeline";
 import { UTM_KEYS, topicLabel, type Lead } from "../schema";
 
 const DEFAULT_BASE_URL = "https://api.lightfield.app";
@@ -38,10 +45,6 @@ interface LightfieldDefinitions {
 }
 
 type Query = Record<string, string>;
-
-export function isLightfieldEnabled(env: LeadEnv): boolean {
-  return isFlagOn(env.LEAD_LIGHTFIELD_ENABLED) && Boolean(env.LIGHTFIELD_API_KEY);
-}
 
 function splitName(fullName: string): { firstName: string; lastName?: string } {
   const [firstName, ...rest] = fullName.split(" ");
@@ -84,24 +87,17 @@ export function noteContent(lead: Lead): string {
 }
 
 /**
- * The pipeline and stage a new opportunity starts in. Lightfield places a
- * record by its stage and rejects a pipeline sent without one, so
- * LIGHTFIELD_PIPELINE_OPTION is only used together with LIGHTFIELD_STAGE_LEAD.
- * A stage option ID picks its pipeline by itself. A stage label alone is
- * looked up in the default pipeline.
+ * The stage, and optionally the pipeline, a new opportunity starts in.
+ * LIGHTFIELD_STAGE_LEAD is required: the sink counts as misconfigured without
+ * it, so that a lead never lands outside the pipeline. A stage option ID picks
+ * its pipeline by itself. A stage label alone is looked up in the default
+ * pipeline, which is what LIGHTFIELD_PIPELINE_OPTION is for.
  */
-export function stageFields(ctx: Pick<SinkContext, "env" | "logger">): Record<string, string> {
-  const stage = ctx.env.LIGHTFIELD_STAGE_LEAD?.trim();
-  const pipeline = ctx.env.LIGHTFIELD_PIPELINE_OPTION?.trim();
+export function stageFields(env: LeadEnv): Record<string, string> {
+  const stage = env.LIGHTFIELD_STAGE_LEAD?.trim();
+  if (!stage) throw new Error("LIGHTFIELD_STAGE_LEAD is not set");
 
-  if (!stage) {
-    if (pipeline) {
-      ctx.logger.warn(
-        "[leads] LIGHTFIELD_PIPELINE_OPTION is set without LIGHTFIELD_STAGE_LEAD. Lightfield rejects a pipeline without a stage, so the opportunity is created with neither."
-      );
-    }
-    return {};
-  }
+  const pipeline = env.LIGHTFIELD_PIPELINE_OPTION?.trim();
   return pipeline ? { $pipeline: pipeline, $stage: stage } : { $stage: stage };
 }
 
@@ -109,7 +105,7 @@ function opportunityFields(lead: Lead, ctx: SinkContext): Record<string, string>
   const descriptionField = ctx.env.LIGHTFIELD_OPPORTUNITY_DESCRIPTION_FIELD?.trim();
   return {
     $name: opportunityName(lead),
-    ...stageFields(ctx),
+    ...stageFields(ctx.env),
     ...(descriptionField ? { [descriptionField]: opportunityDescription(lead) } : {}),
   };
 }
@@ -255,14 +251,15 @@ async function findOpenSignalhausOpportunity(
 }
 
 /**
- * Lightfield contact and opportunity upsert.
- * Off unless LEAD_LIGHTFIELD_ENABLED is exactly "true" and LIGHTFIELD_API_KEY
- * is set. Lightfield has no upsert endpoint, so this follows its documented
+ * Lightfield contact and opportunity upsert. A record sink.
+ * Off unless LEAD_LIGHTFIELD_ENABLED is exactly "true". Once it is, it needs
+ * LIGHTFIELD_API_KEY and LIGHTFIELD_STAGE_LEAD, and counts as failed without
+ * them. Lightfield has no upsert endpoint, so this follows its documented
  * find-or-create pattern and sends an Idempotency-Key with every create.
  *
  * A new opportunity is named "Signalhaus · <topic> · <company or name>" and
- * starts in the stage and pipeline named by LIGHTFIELD_STAGE_LEAD and
- * LIGHTFIELD_PIPELINE_OPTION. A contact who is already in Lightfield and
+ * starts in the stage named by LIGHTFIELD_STAGE_LEAD, in the pipeline named by
+ * LIGHTFIELD_PIPELINE_OPTION when that is set. A contact who is already in Lightfield and
  * already has an open Signalhaus opportunity keeps that one. Opportunities
  * hang off accounts in Lightfield, not contacts, so "already has" means one
  * on the contact's account.
@@ -272,8 +269,12 @@ async function findOpenSignalhausOpportunity(
  */
 export const lightfieldSink: LeadSink = {
   name: "lightfield",
-  kind: "real",
-  isEnabled: isLightfieldEnabled,
+  kind: "record",
+  readiness: (env) =>
+    readiness(isFlagOn(env.LEAD_LIGHTFIELD_ENABLED), [
+      ...(env.LIGHTFIELD_API_KEY ? [] : ["LIGHTFIELD_API_KEY"]),
+      ...(env.LIGHTFIELD_STAGE_LEAD?.trim() ? [] : ["LIGHTFIELD_STAGE_LEAD"]),
+    ]),
   async deliver(lead, ctx) {
     const deadline = new AbortController();
     const timer = setTimeout(

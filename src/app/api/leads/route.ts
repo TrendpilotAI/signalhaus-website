@@ -80,11 +80,17 @@ export async function POST(req: Request) {
     ...validation.fields,
   };
 
-  // With a real sink switched on, the lead only counts once one of them has it.
-  // The log line alone does not keep the lead, so the visitor is asked to try again.
-  const { accepted } = await runLeadPipeline(lead, { sinks: defaultSinks });
+  // Fail closed. The lead only counts once a record sink (an inbox or the CRM)
+  // has it. A Slack ping or the line in the log does not keep the lead, and
+  // neither does a deployment with no record sink switched on. This is the
+  // same in every environment.
+  const { accepted, rejection } = await runLeadPipeline(lead, { sinks: defaultSinks });
   if (!accepted) {
-    console.error(`[leads] lead ${lead.id} was not delivered to any sink`);
+    console.error(
+      rejection === "no-record-sink-enabled"
+        ? `[leads] lead ${lead.id} was turned away because no record sink is switched on. Set up Resend or Lightfield.`
+        : `[leads] lead ${lead.id} was turned away because no record sink accepted it`
+    );
     return NextResponse.json({ error: DELIVERY_FAILED_MESSAGE }, { status: 502 });
   }
 
