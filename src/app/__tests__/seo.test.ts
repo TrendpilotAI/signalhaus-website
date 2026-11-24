@@ -52,6 +52,18 @@ describe("redirects", () => {
   });
 });
 
+describe("security headers", () => {
+  it("sends HSTS as a plain max-age, without preload or includeSubDomains", async () => {
+    const rules = (await nextConfig.headers?.()) ?? [];
+    const hsts = rules
+      .flatMap((rule) => rule.headers)
+      .filter((header) => header.key === "Strict-Transport-Security");
+
+    expect(hsts).toHaveLength(1);
+    expect(hsts[0].value).toMatch(/^max-age=\d+$/);
+  });
+});
+
 describe("robots", () => {
   it("allows the site, keeps the API out and points at the sitemap", () => {
     const config = robots();
