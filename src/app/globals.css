@@ -48,6 +48,8 @@
 
   html {
     -webkit-text-size-adjust: 100%;
+    /* Keeps anchor targets and focused elements clear of the 64px sticky header. */
+    scroll-padding-top: 88px;
   }
 
   body {
@@ -199,6 +201,11 @@
     line-height: 1;
     color: var(--color-accent);
     font-variant-numeric: tabular-nums;
+  }
+
+  /* On the tinted fills the marker uses the darker terracotta, which keeps it above 4.5 to 1. */
+  :is(.tile, .callout, .band) .marker {
+    color: var(--color-accent-dim);
   }
 
   /* Flat tinted tile. No border, no shadow. */
@@ -611,7 +618,6 @@
     line-height: 1.08;
     letter-spacing: -0.02em;
     margin-top: 2.1em;
-    scroll-margin-top: 96px;
   }
 
   .prose-sh h3 {

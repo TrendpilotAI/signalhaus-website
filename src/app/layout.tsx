@@ -43,7 +43,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <LinkedInInsight partnerId={process.env.NEXT_PUBLIC_LINKEDIN_PARTNER_ID || ""} />
         <AttributionTracker />
         <Header />
-        <main id="main" className="scroll-mt-16">{children}</main>
+        <main id="main">{children}</main>
         <Footer />
       </body>
     </html>
