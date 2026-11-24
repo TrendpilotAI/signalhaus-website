@@ -1,0 +1,275 @@
+"use client";
+
+import { useId, useRef, useState, type FormEvent } from "react";
+import { IconCheck } from "@/components/icons";
+import { trackConversion } from "@/lib/gtag";
+import { collectAttribution } from "@/lib/leads/attribution";
+import { EMPTY_LEAD_FORM, submitLead, type LeadFormValues } from "@/lib/leads/client";
+import {
+  HONEYPOT_FIELD,
+  LEAD_LIMITS,
+  LEAD_TOPICS,
+  validateLead,
+  type LeadFieldErrors,
+  type LeadFieldName,
+  type LeadTopic,
+} from "@/lib/leads/schema";
+import { TOOLKIT_URL } from "@/lib/site";
+
+export interface LeadFormProps {
+  /** Which form this is, e.g. "landing", "blog-post", "contact". Sent with the lead. */
+  source: string;
+  /** Blog post slug when the form sits on a post. */
+  postSlug?: string;
+  /** Pre-selects the topic, e.g. the topic of the post the form sits on. */
+  defaultTopic?: LeadTopic;
+  submitLabel?: string;
+}
+
+type Status = "idle" | "sending" | "sent";
+
+const FIELD_ORDER: LeadFieldName[] = ["name", "email", "company", "role", "topic", "workingOn"];
+
+export default function LeadForm({
+  source,
+  postSlug,
+  defaultTopic,
+  submitLabel = "Send it to Nathan",
+}: LeadFormProps) {
+  const uid = useId();
+  const formRef = useRef<HTMLFormElement>(null);
+  const [values, setValues] = useState<LeadFormValues>({
+    ...EMPTY_LEAD_FORM,
+    topic: defaultTopic ?? "",
+  });
+  const [errors, setErrors] = useState<LeadFieldErrors>({});
+  const [message, setMessage] = useState<string | null>(null);
+  const [status, setStatus] = useState<Status>("idle");
+
+  const id = (field: string) => `${uid}-${field}`;
+
+  function update<K extends keyof LeadFormValues>(field: K, value: LeadFormValues[K]) {
+    setValues((current) => ({ ...current, [field]: value }));
+    if (errors[field as LeadFieldName]) {
+      setErrors((current) => ({ ...current, [field]: undefined }));
+    }
+  }
+
+  function focusFirstError(fieldErrors: LeadFieldErrors) {
+    const first = FIELD_ORDER.find((field) => fieldErrors[field]);
+    if (!first) return;
+    formRef.current?.querySelector<HTMLElement>(`[name="${first}"]`)?.focus();
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (status === "sending") return;
+
+    const attribution = collectAttribution(source, postSlug ?? null);
+
+    const check = validateLead({ ...values, attribution });
+    if (!check.ok) {
+      setErrors(check.errors);
+      setMessage("A couple of things need fixing before this can send.");
+      focusFirstError(check.errors);
+      return;
+    }
+
+    setStatus("sending");
+    setErrors({});
+    setMessage(null);
+
+    const result = await submitLead(values, attribution);
+    if (result.ok) {
+      setStatus("sent");
+      trackConversion(`lead_${source}`);
+      return;
+    }
+
+    setStatus("idle");
+    setErrors(result.fieldErrors);
+    setMessage(result.message);
+    focusFirstError(result.fieldErrors);
+  }
+
+  if (status === "sent") {
+    const firstName = values.name.trim().split(/\s+/)[0];
+    return (
+      <div role="status" aria-live="polite" className="flex flex-col gap-4">
+        <span className="icon-tile">
+          <IconCheck />
+        </span>
+        <h3 className="h3">Thanks{firstName ? `, ${firstName}` : ""}. Your note came through.</h3>
+        <p>
+          If you want something to read in the meantime, the{" "}
+          <a href={TOOLKIT_URL} target="_blank" rel="noopener">
+            Data-Driven Decision-Making Toolkit
+          </a>{" "}
+          is free and it&apos;s a good place to start.
+        </p>
+      </div>
+    );
+  }
+
+  const describedBy = (field: LeadFieldName) => (errors[field] ? id(`${field}-error`) : undefined);
+
+  const fieldError = (field: LeadFieldName) =>
+    errors[field] ? (
+      <p id={id(`${field}-error`)} className="field-error">
+        {errors[field]}
+      </p>
+    ) : null;
+
+  return (
+    <form ref={formRef} onSubmit={handleSubmit} noValidate className="flex flex-col gap-6">
+      <div className="grid gap-6 sm:grid-cols-2">
+        <div>
+          <label htmlFor={id("name")} className="field-label">
+            Your name
+          </label>
+          <input
+            id={id("name")}
+            name="name"
+            type="text"
+            autoComplete="name"
+            required
+            maxLength={LEAD_LIMITS.name}
+            value={values.name}
+            onChange={(e) => update("name", e.target.value)}
+            aria-invalid={errors.name ? true : undefined}
+            aria-describedby={describedBy("name")}
+            className="field-input"
+          />
+          {fieldError("name")}
+        </div>
+        <div>
+          <label htmlFor={id("email")} className="field-label">
+            Email
+          </label>
+          <input
+            id={id("email")}
+            name="email"
+            type="email"
+            autoComplete="email"
+            inputMode="email"
+            required
+            maxLength={LEAD_LIMITS.email}
+            value={values.email}
+            onChange={(e) => update("email", e.target.value)}
+            aria-invalid={errors.email ? true : undefined}
+            aria-describedby={describedBy("email")}
+            className="field-input"
+          />
+          {fieldError("email")}
+        </div>
+        <div>
+          <label htmlFor={id("company")} className="field-label">
+            Company <span className="font-normal text-muted">(optional)</span>
+          </label>
+          <input
+            id={id("company")}
+            name="company"
+            type="text"
+            autoComplete="organization"
+            maxLength={LEAD_LIMITS.company}
+            value={values.company}
+            onChange={(e) => update("company", e.target.value)}
+            aria-invalid={errors.company ? true : undefined}
+            aria-describedby={describedBy("company")}
+            className="field-input"
+          />
+          {fieldError("company")}
+        </div>
+        <div>
+          <label htmlFor={id("role")} className="field-label">
+            Your role <span className="font-normal text-muted">(optional)</span>
+          </label>
+          <input
+            id={id("role")}
+            name="role"
+            type="text"
+            autoComplete="organization-title"
+            maxLength={LEAD_LIMITS.role}
+            value={values.role}
+            onChange={(e) => update("role", e.target.value)}
+            aria-invalid={errors.role ? true : undefined}
+            aria-describedby={describedBy("role")}
+            className="field-input"
+          />
+          {fieldError("role")}
+        </div>
+      </div>
+
+      <div>
+        <label htmlFor={id("topic")} className="field-label">
+          What is it mostly about?
+        </label>
+        <select
+          id={id("topic")}
+          name="topic"
+          required
+          value={values.topic}
+          onChange={(e) => update("topic", e.target.value as LeadTopic | "")}
+          aria-invalid={errors.topic ? true : undefined}
+          aria-describedby={describedBy("topic")}
+          className="field-input"
+        >
+          <option value="">Pick the closest one</option>
+          {LEAD_TOPICS.map((topic) => (
+            <option key={topic.value} value={topic.value}>
+              {topic.label}
+            </option>
+          ))}
+        </select>
+        {fieldError("topic")}
+      </div>
+
+      <div>
+        <label htmlFor={id("workingOn")} className="field-label">
+          What are you working on?
+        </label>
+        <textarea
+          id={id("workingOn")}
+          name="workingOn"
+          required
+          rows={5}
+          maxLength={LEAD_LIMITS.workingOnMax}
+          placeholder="A few plain sentences is plenty. What you're building, and where you're stuck."
+          value={values.workingOn}
+          onChange={(e) => update("workingOn", e.target.value)}
+          aria-invalid={errors.workingOn ? true : undefined}
+          aria-describedby={describedBy("workingOn")}
+          className="field-input resize-y"
+        />
+        {fieldError("workingOn")}
+      </div>
+
+      {/* Honeypot. Real visitors never see or reach this field. */}
+      <div className="honeypot" aria-hidden="true">
+        <label htmlFor={id(HONEYPOT_FIELD)}>Leave this field empty</label>
+        <input
+          id={id(HONEYPOT_FIELD)}
+          name={HONEYPOT_FIELD}
+          type="text"
+          tabIndex={-1}
+          autoComplete="off"
+          value={values[HONEYPOT_FIELD]}
+          onChange={(e) => update(HONEYPOT_FIELD, e.target.value)}
+        />
+      </div>
+
+      {message ? (
+        <p role="alert" className="callout">
+          {message}
+        </p>
+      ) : null}
+
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+        <button type="submit" className="btn btn-primary flex-none whitespace-nowrap" disabled={status === "sending"}>
+          {status === "sending" ? "Sending..." : submitLabel}
+        </button>
+        <p className="caption">Your note goes to Nathan. It doesn&apos;t add you to a mailing list.</p>
+      </div>
+    </form>
+  );
+}
