@@ -63,7 +63,7 @@ Pages: `/pricing` is deleted and redirects to `/services`.
 | C4 | "15+ years building AI for the world's largest financial institutions" | `src/app/about/page.tsx:7,33,46` | Removed |
 | C5 | "We've shipped AI products used by the world's largest financial institutions" | `src/app/services/page.tsx:45` | Removed |
 | C6 | Timeline 2014 to 2024 (founding, accelerator, WEF, enterprise deployments, awards, Signalhaus launch) | `src/app/about/page.tsx:16-23` | Removed |
-| C7 | Organization structured data: founder job title "Founder & CEO", founding date 2023, Fort Lauderdale address, `areaServed` United States | `src/app/layout.tsx:44-58` | Removed. The new Organization JSON-LD has name, URL, logo, description and contact page only. |
+| C7 | Organization structured data: founder job title "Founder & CEO", founding date 2023, Fort Lauderdale address, `areaServed` United States | `src/app/layout.tsx:26-39` | Removed. The new Organization JSON-LD has the name, legal name, URL, logo, description, contact page and the founder with the one-line bio. Nothing else. |
 | C8 | Author line "SignalHaus Team" on blog posts | All five old posts | Archived. New posts are by Nathan Stevenson. |
 | C9 | The course Nathan first prepared the toolkit for, and the institution behind it | Private call notes and the toolkit deck. Never on the site. | Not used. It is a credential claim, so the site links to the toolkit without naming the course. |
 
@@ -136,6 +136,8 @@ All five are unattributed to a named person. Removed with `src/components/Testim
 | B1 | Inline booking widget on `/contact` (a 30-minute slot) and its third-party script | `src/app/contact/page.tsx:28-45` | Removed. I could not confirm the booking link is live and current. The form is the only way in for now. |
 | B2 | Booking domains in the Content Security Policy | `next.config.ts` | Removed with the widget |
 | B3 | Old contact endpoint `/api/contact` that emailed through Resend whenever `RESEND_API_KEY` was set, from a root-domain address | `src/app/api/contact/route.ts` | Deleted. `/api/leads` replaces it, and email is off unless `LEAD_RESEND_ENABLED` is exactly `true`. |
+| B4 | Contact email address and company LinkedIn link in the Organization structured data, and the same email as the RSS author | `src/app/layout.tsx:40-48`, `src/app/feed.xml/route.ts:33` | Removed. I could not confirm either is live. The structured data points at `/contact`, and the feed names the author without an address. |
+| B5 | Search action in the WebSite structured data pointing at `/blog?q=` | `src/app/layout.tsx:65-69` | Removed. The blog has no search, so the markup described a feature that does not exist. |
 
 ## 11. Pages
 
@@ -173,6 +175,10 @@ None of the five existing posts fits the new positioning. All five are written i
 | Share image "SignalHaus - AI Strategy & Automation" (dark theme) | `public/og-image.png` | Deleted. Replaced by a generated share image in the new style. |
 | Static sitemap listing `/pricing`, `/case-studies` and `/roi-calculator` | `public/sitemap.xml` | Deleted. `src/app/sitemap.ts` generates the sitemap. |
 | Unused starter icons | `public/file.svg`, `globe.svg`, `next.svg`, `vercel.svg`, `window.svg` | Deleted |
+| Default favicon | `src/app/favicon.ico` | Deleted. `src/app/icon.svg` is the new icon. |
+| Static robots file | `public/robots.txt` | Deleted. `src/app/robots.ts` generates it, with the same rules plus `/api/` kept out. |
+| ROI maths and its tests | `src/lib/roi.ts`, `src/lib/__tests__/roi.test.ts`, `src/components/ROICalculator.tsx` | Deleted with the calculator (section 9) |
+| Testimonial carousel | `src/components/TestimonialCarousel.tsx` | Deleted with the testimonials (section 8) |
 
 ## 14. Left alone on purpose
 
@@ -189,5 +195,5 @@ None of the five existing posts fits the new positioning. All five are written i
 - 11 result or benchmark claims
 - 4 case studies and 5 testimonials
 - 1 ROI calculator with 4 baked-in assumptions
-- 1 booking widget, 1 third-party form endpoint and 1 ungated email endpoint
+- 1 booking widget, 1 third-party form endpoint, 1 ungated email endpoint, 1 unconfirmed contact email and LinkedIn link, and 1 search action for a search that does not exist
 - 3 pages deleted with redirects, 4 pages rewritten, 5 posts archived
