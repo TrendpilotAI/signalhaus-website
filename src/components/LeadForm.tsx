@@ -30,6 +30,36 @@ type Status = "idle" | "sending" | "sent";
 
 const FIELD_ORDER: LeadFieldName[] = ["name", "email", "company", "topic", "workingOn"];
 
+/** A ref for an element that should take focus as soon as it is on the page. */
+function focusOnMount(node: HTMLElement | null) {
+  node?.focus();
+}
+
+/**
+ * Shown in place of the form once a lead is in. The form, and the button that
+ * had focus, are gone by then, so the heading takes focus. That keeps a
+ * keyboard user in place and makes a screen reader read the heading out.
+ */
+export function LeadFormThanks({ firstName }: { firstName: string }) {
+  return (
+    <div className="flex flex-col gap-4">
+      <span className="icon-tile">
+        <IconCheck />
+      </span>
+      <h3 ref={focusOnMount} tabIndex={-1} className="h3">
+        Thanks{firstName ? `, ${firstName}` : ""}. Your note came through.
+      </h3>
+      <p>
+        If you want something to read in the meantime, the{" "}
+        <a href={TOOLKIT_URL} target="_blank" rel="noopener">
+          Data-Driven Decision-Making Toolkit
+        </a>{" "}
+        is free and it&apos;s a good place to start.
+      </p>
+    </div>
+  );
+}
+
 export default function LeadForm({
   source,
   postSlug,
@@ -96,22 +126,7 @@ export default function LeadForm({
   }
 
   if (status === "sent") {
-    const firstName = values.name.trim().split(/\s+/)[0];
-    return (
-      <div role="status" aria-live="polite" className="flex flex-col gap-4">
-        <span className="icon-tile">
-          <IconCheck />
-        </span>
-        <h3 className="h3">Thanks{firstName ? `, ${firstName}` : ""}. Your note came through.</h3>
-        <p>
-          If you want something to read in the meantime, the{" "}
-          <a href={TOOLKIT_URL} target="_blank" rel="noopener">
-            Data-Driven Decision-Making Toolkit
-          </a>{" "}
-          is free and it&apos;s a good place to start.
-        </p>
-      </div>
-    );
+    return <LeadFormThanks firstName={values.name.trim().split(/\s+/)[0] ?? ""} />;
   }
 
   const describedBy = (field: LeadFieldName) => (errors[field] ? id(`${field}-error`) : undefined);
