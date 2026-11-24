@@ -1,104 +1,133 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import ClosingCard from "@/components/ClosingCard";
+import { IconArrowRight, IconChart, IconHands, IconSheet, IconTalk } from "@/components/icons";
+import JsonLd from "@/components/JsonLd";
+import ToolkitCallout from "@/components/ToolkitCallout";
+import { breadcrumbJsonLd, personJsonLd } from "@/lib/jsonld";
+import { SITE } from "@/lib/site";
+
+const DESCRIPTION =
+  "Signalhaus LLC is Nathan Stevenson's Services-as-Software consulting firm, an AI growth advisory for founders.";
 
 export const metadata: Metadata = {
   title: "About",
-  description:
-    "Founded by Nathan Stevenson, former CEO of ForwardLane. Harvard alum, WEF Technology Pioneer, Techstars grad. 15+ years in enterprise AI.",
-  alternates: { canonical: "https://www.signalhaus.ai/about" },
-  openGraph: {
-    title: "About SignalHaus",
-    description: "Meet the team behind SignalHaus — enterprise AI veterans.",
-    images: [{ url: "/og-image.png", width: 1200, height: 630 }],
-  },
+  description: DESCRIPTION,
+  alternates: { canonical: "/about" },
+  openGraph: { title: "About Signalhaus", description: DESCRIPTION, url: "/about" },
 };
 
-const milestones = [
-  { year: "2014", text: "Nathan founds ForwardLane — built one of the first AI platforms for wealth management, proving AI could automate complex advisory workflows" },
-  { year: "2016", text: "Selected for Techstars Barclays Accelerator — validated enterprise AI delivery model with top-tier financial institutions" },
-  { year: "2017", text: "Named World Economic Forum Technology Pioneer — recognized for real-world AI impact, not research papers" },
-  { year: "2018", text: "Deployed AI at BNY Pershing, Invesco, LPL Financial, Columbia Threadneedle — driving $50M+ in measurable revenue impact" },
-  { year: "2020", text: "Named AI Hot 100, KPMG Top 50 Fintechs, WealthTech 100 — proving consistent delivery across enterprise clients" },
-  { year: "2024", text: "SignalHaus launches — making enterprise-grade AI accessible to growth-stage B2B teams without in-house ML resources" },
+const PRINCIPLES = [
+  {
+    icon: <IconTalk />,
+    title: "Plain words",
+    body: "If a line needs explaining, I rewrite it until it doesn't. You should be able to repeat it to your team.",
+  },
+  {
+    icon: <IconChart />,
+    title: "One number first",
+    body: "We start with the number you most want to see change. More can come later.",
+  },
+  {
+    icon: <IconSheet />,
+    title: "Small tests",
+    body: "A test should take less than two weeks. Then we look at what happened and decide what to do next.",
+  },
+  {
+    icon: <IconHands />,
+    title: "Your team owns it",
+    body: "The rhythm and the playbooks get written down, so the work carries on when I'm not in the room.",
+  },
 ];
 
 export default function AboutPage() {
   return (
-    <section className="pt-32 pb-24 px-6">
-      <div className="max-w-4xl mx-auto">
-        <h1 className="text-4xl md:text-5xl font-bold text-center mb-6">
-          About SignalHaus
-        </h1>
-        <p className="text-center text-gray-400 text-lg max-w-2xl mx-auto mb-20">
-          15+ years of building AI for the world&apos;s largest financial institutions — now applied to helping growth-stage B2B teams ship automations that actually drive revenue.
-        </p>
+    <>
+      <JsonLd
+        data={[
+          { "@context": "https://schema.org", ...personJsonLd() },
+          breadcrumbJsonLd([
+            { name: "Home", path: "/" },
+            { name: "About", path: "/about" },
+          ]),
+        ]}
+      />
 
-        {/* Founder */}
-        <div className="bg-gray-900 rounded-2xl border border-gray-800 p-8 md:p-12 mb-16">
-          <div className="flex flex-col md:flex-row gap-8 items-start">
-            <div className="w-24 h-24 bg-indigo-600/20 rounded-2xl flex items-center justify-center text-4xl shrink-0" role="img" aria-label="Nathan Stevenson, founder of SignalHaus">
-              NS
-            </div>
-            <div>
-              <h2 className="text-2xl font-bold mb-1">Nathan Stevenson</h2>
-              <p className="text-indigo-400 font-medium mb-4">Founder &amp; CEO</p>
-              <p className="text-gray-300 leading-relaxed mb-4">
-                I&apos;ve spent 15+ years building AI and data products for the world&apos;s leading financial institutions. As founder and former CEO of ForwardLane, I led enterprise AI implementations for BNY Pershing, Invesco, LPL Financial, Columbia Threadneedle, and dozens more.
-              </p>
-              <p className="text-gray-300 leading-relaxed mb-4">
-                A Harvard alum, Techstars graduate, and World Economic Forum Technology Pioneer — I started SignalHaus to help companies cut through the AI noise and ship solutions that actually drive revenue.
-              </p>
-              <p className="text-gray-300 leading-relaxed">
-                We understand sales and GTM with CRO-level expertise gleaned from OpenTable, Booker, and VTS, as well as Greyscale and the Ned private members club.
-              </p>
-            </div>
+      <section className="page flex flex-col gap-6 pb-12 pt-10 md:pt-16">
+        <p className="eyebrow">About</p>
+        <h1 className="h1 max-w-[18ch]">About Signalhaus</h1>
+        <p className="lead max-w-[60ch]">
+          {SITE.legalName} is {SITE.founder.name}&apos;s Services-as-Software consulting firm.
+          It&apos;s an AI growth advisory for founders.
+        </p>
+      </section>
+
+      <section className="section !pt-8" aria-labelledby="nathan-heading">
+        <div className="page grid gap-10 lg:grid-cols-[5fr_7fr] lg:gap-16">
+          <div className="flex flex-col gap-6">
+            <p className="eyebrow">Who you&apos;d be working with</p>
+            <h2 id="nathan-heading" className="h2">
+              {SITE.founder.name}
+            </h2>
+            <p id="nathan-stevenson">{SITE.founder.bio}</p>
+          </div>
+          <div className="flex flex-col gap-6">
+            <figure className="quote flex flex-col gap-4">
+              <blockquote className="lead">
+                Three or four years into my own company I was still asking which numbers mattered.
+                Pricing was a real challenge for me. It felt like the Bermuda Triangle.
+              </blockquote>
+              <figcaption className="caption">{SITE.founder.name}</figcaption>
+            </figure>
+            <p>
+              So when a founder tells me they haven&apos;t worked it all out yet, I tell them to
+              give themselves a break. That&apos;s why you have a team, and that&apos;s what
+              advisors are for.
+            </p>
+            <p>
+              I&apos;m selective about who I take on. It has to be someone I can actually help.
+            </p>
           </div>
         </div>
+      </section>
 
-        {/* Timeline */}
-        <h2 className="text-2xl font-bold mb-8 text-center">Our Journey</h2>
-        <div className="space-y-6 mb-16">
-          {milestones.map((m) => (
-            <div key={m.year} className="flex gap-6 items-start">
-              <span className="text-indigo-400 font-mono font-bold text-lg shrink-0 w-16">{m.year}</span>
-              <p className="text-gray-300 border-l border-gray-800 pl-6">{m.text}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* Values */}
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-16">
-          {[
-            { title: "Pragmatic", desc: "We only recommend what will deliver measurable ROI. Every engagement starts with your revenue goals and works backward to the right solution." },
-            { title: "Transparent", desc: "No black boxes, no vendor lock-in. You own your code, your data, and your infrastructure — and you see results within 30 days." },
-            { title: "Operator-Led", desc: "Every project is led by people who've built and scaled AI products at enterprise — not junior consultants reading a playbook." },
-          ].map((v) => (
-            <div key={v.title} className="p-6 bg-gray-900 rounded-xl border border-gray-800">
-              <h3 className="font-semibold mb-2">{v.title}</h3>
-              <p className="text-sm text-gray-400">{v.desc}</p>
-            </div>
-          ))}
-        </div>
-
-        <div className="text-center space-y-4">
-          <Link
-            href="/contact"
-            className="inline-flex px-8 py-4 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-lg font-semibold transition"
-          >
-            Work With Us
-          </Link>
-          <p className="text-gray-400 text-sm">
-            Learn more about{" "}
-            <Link href="/services" className="text-indigo-400 hover:text-indigo-300 font-medium transition">
-              our services
+      <section className="section" aria-labelledby="how-heading">
+        <div className="page flex flex-col gap-10">
+          <h2 id="how-heading" className="h2">
+            How I work
+          </h2>
+          <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            {PRINCIPLES.map((item) => (
+              <li key={item.title} className="tile flex flex-col items-start gap-4">
+                <span className="icon-tile">{item.icon}</span>
+                <h3 className="h3">{item.title}</h3>
+                <p className="text-[1.0625rem]">{item.body}</p>
+              </li>
+            ))}
+          </ul>
+          <div className="flex flex-col gap-4 sm:flex-row sm:gap-8">
+            <Link href="/services" className="link-arrow">
+              See how the work runs
+              <IconArrowRight width={18} height={18} />
             </Link>
-            {" "}or see how we deliver results in our{" "}
-            <Link href="/case-studies" className="text-indigo-400 hover:text-indigo-300 font-medium transition">
-              case studies
-            </Link>.
-          </p>
+            <Link href="/blog" className="link-arrow">
+              Read the guides
+              <IconArrowRight width={18} height={18} />
+            </Link>
+          </div>
         </div>
-      </div>
-    </section>
+      </section>
+
+      <section className="section" aria-label="The free toolkit">
+        <div className="page">
+          <ToolkitCallout />
+        </div>
+      </section>
+
+      <ClosingCard
+        heading="Tell me what you're working on."
+        cta={{ label: "Get in touch", href: "/contact" }}
+      />
+    </>
   );
 }

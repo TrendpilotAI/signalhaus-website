@@ -1,202 +1,277 @@
+import type { Metadata } from "next";
 import Link from "next/link";
-import TestimonialCarousel from "@/components/TestimonialCarousel";
+import ClosingCard from "@/components/ClosingCard";
+import { IconAgent, IconArrowRight, IconHands, IconSheet, IconTalk, IconWrench } from "@/components/icons";
+import { SignalHouse } from "@/components/illustrations";
+import LeadSection from "@/components/LeadSection";
+import ToolkitCallout from "@/components/ToolkitCallout";
+import TopicIcon from "@/components/TopicIcon";
+import type { LeadTopic } from "@/lib/leads/schema";
+import { SITE } from "@/lib/site";
 
-const badges = [
-  { name: "Harvard Alumni", alt: "Harvard Alumni badge" },
-  { name: "World Economic Forum", alt: "World Economic Forum Technology Pioneer badge" },
-  { name: "AWS Partner", alt: "AWS partner badge" },
-  { name: "AI Hot 100", alt: "AI Hot 100 award badge" },
-  { name: "AudienceLab", alt: "AudienceLab partner badge" },
-];
+export const metadata: Metadata = {
+  title: { absolute: `${SITE.name} - ${SITE.tagline}` },
+  description: SITE.description,
+  alternates: { canonical: "/" },
+};
 
-const services = [
+const QUESTIONS: Array<{
+  topic: LeadTopic;
+  question: string;
+  answer: string;
+  href: string;
+  linkLabel: string;
+}> = [
   {
-    title: "AI Strategy",
-    desc: "Stop guessing which AI projects will actually pay off. We audit your ops, score every opportunity by ROI, and hand you a 90-day roadmap that ships real results — not a deck that collects dust.",
-    icon: "🎯",
+    topic: "due-diligence",
+    question: "How do I get through investor due diligence?",
+    answer:
+      "Investors ask about four things, which are the vision, the customers, you and the competition. You can practise all four before the meeting.",
+    href: "/blog/how-to-survive-vc-due-diligence-meetings",
+    linkLabel: "How to survive VC due diligence meetings",
   },
   {
-    title: "Data Integration",
-    desc: "Your data is scattered across 12 tools. We fix that. We unify your CRM, data warehouse, and third-party sources into one intelligence layer so every team works from the same truth.",
-    icon: "🔗",
+    topic: "positioning",
+    question: "Where do we position?",
+    answer:
+      "Start where the conversations are already easy. Then lead with the one thing a buyer can say yes or no to straight away.",
+    href: "/blog/how-to-position-a-startup",
+    linkLabel: "How to position a startup",
   },
   {
-    title: "Workflow Automation",
-    desc: "Replace the manual work your team dreads. We build intelligent agents that handle outreach, qualification, reporting, and reconciliation — 24/7, so your people focus on closing deals and moving revenue.",
-    icon: "⚡",
+    topic: "prioritization",
+    question: "What do we do first?",
+    answer:
+      "Ask where the need is greatest right now and start there. Two short meetings a week are enough to keep it moving.",
+    href: "/blog/how-to-prioritize-as-a-startup-founder",
+    linkLabel: "How to prioritize as a startup founder",
+  },
+  {
+    topic: "data-driven-decisions",
+    question: "Which numbers matter?",
+    answer:
+      "Pick one number, write it down every week, and let it change what you do next. It takes about an hour to set up.",
+    href: "/blog/data-driven-decision-making-for-startups",
+    linkLabel: "Data-driven decision making for startups",
   },
 ];
 
-const pricingPreview = [
-  { tier: "QuickStart", price: "$1,250", unit: "flat", desc: "Up to 3 custom automations" },
-  { tier: "Growth Engine", price: "$4,800", unit: "/mo", desc: "10 automations + 5 AI agents" },
-  { tier: "Enterprise OS", price: "$25K–$100K+", unit: "", desc: "Multi-agent orchestration" },
+const STEPS = [
+  {
+    icon: <IconTalk />,
+    title: "We talk it through",
+    body: "We start with a conversation about what you're building and where you're stuck. I ask a lot of questions, and most of them are the ones an investor would ask.",
+  },
+  {
+    icon: <IconSheet />,
+    title: "We pick one number",
+    body: "We agree on the number you most want to see change and put it in a sheet. You don't need special tools for this.",
+  },
+  {
+    icon: <IconAgent />,
+    title: "Agents do the legwork",
+    body: "AI agents gather the information and work through the tasks during the week, so it doesn't all land on you.",
+  },
+  {
+    icon: <IconHands />,
+    title: "Your team owns it",
+    body: "A short weekly review shows what worked and what didn't. It all gets written down, so your team can keep running it.",
+  },
 ];
 
-const results = [
-  { number: "60–80%", label: "Less time spent on manual ops workflows", icon: "⚡" },
-  { number: "$50M+", label: "Revenue impact delivered across client portfolios", icon: "💰" },
-  { number: "30 days", label: "From kickoff to first automation in production", icon: "🚀" },
-  { number: "100%", label: "Client retention — every engagement renews", icon: "🤝" },
+const WAYS = [
+  {
+    icon: <IconTalk />,
+    title: "Advisory",
+    body: "I advise, and your team does the work.",
+  },
+  {
+    icon: <IconWrench />,
+    title: "Advisory and build",
+    body: "Advice, and I take on some of the implementation with you.",
+  },
+  {
+    icon: <IconHands />,
+    title: "Hands-on",
+    body: "I do more of the building myself, so you get moving faster.",
+  },
 ];
 
-export default function Home() {
+export default function HomePage() {
   return (
     <>
-      {/* Hero */}
-      <section className="pt-32 pb-20 px-6 overflow-hidden">
-        <div className="max-w-4xl mx-auto text-center">
-          <h1 className="text-3xl sm:text-5xl md:text-7xl font-bold tracking-tight leading-tight">
-            Your Team Spends 60% of Their Time<br />
-            <span className="text-indigo-400">on Work AI Should Handle</span>
-          </h1>
-          <p className="mt-6 text-base sm:text-xl text-gray-400 max-w-2xl mx-auto">
-            We build custom AI automations, data integrations, and intelligent agents for B2B companies — so your ops, sales, and finance teams can focus on work that actually moves revenue.
+      {/* Title: eyebrow, serif heading, subtitle, illustration. */}
+      <section className="page grid items-center gap-10 pb-16 pt-10 md:pb-24 md:pt-16 lg:grid-cols-[7fr_5fr]">
+        <div className="flex flex-col items-start gap-8">
+          <p className="eyebrow">Services-as-Software for founders</p>
+          <h1 className="display max-w-[13ch]">You don&apos;t have to have every answer yet.</h1>
+          <p className="lead max-w-[54ch]">
+            I&apos;m Nathan, and Signalhaus is my consulting firm. I help founders work out where
+            to position, what to do first, which numbers to watch and how to get through investor
+            due diligence. Then AI agents take on a lot of the legwork, so you still have help
+            between our calls.
           </p>
-          <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
-            <Link
-              href="/contact"
-              className="px-8 py-4 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-lg font-semibold transition"
-            >
-              Book a Free Strategy Call
-            </Link>
-            <Link
-              href="/case-studies"
-              className="px-8 py-4 border border-gray-700 hover:border-indigo-500 rounded-xl text-lg font-semibold transition"
-            >
-              See Client Results →
+          <div className="flex flex-col gap-4 sm:flex-row">
+            <a href="#talk" className="btn btn-primary">
+              Tell me what you&apos;re working on
+            </a>
+            <Link href="/blog" className="btn btn-secondary">
+              Read the guides
             </Link>
           </div>
+          <p className="caption max-w-[60ch]">
+            {SITE.founder.name}. {SITE.founder.bio}
+          </p>
         </div>
+        <SignalHouse className="mx-auto h-auto w-full max-w-[560px]" />
       </section>
 
-      {/* Social Proof Badges */}
-      <section className="py-16 border-y border-gray-800">
-        <div className="max-w-5xl mx-auto px-6">
-          <p className="text-center text-sm uppercase tracking-widest text-gray-500 mb-8">
-            Trusted by teams backed by
-          </p>
-          <div className="flex flex-wrap justify-center gap-8 md:gap-12">
-            {badges.map((b) => (
-              <div
-                key={b.name}
-                className="px-4 py-2 bg-gray-900 rounded-lg border border-gray-800 text-sm text-gray-300 font-medium"
-                role="img"
-                aria-label={b.alt}
-              >
-                {b.name}
-              </div>
+      {/* Heading plus tiles: icon tile, h3, paragraph. */}
+      <section className="section" aria-labelledby="questions-heading">
+        <div className="page flex flex-col gap-10">
+          <div className="flex max-w-[62ch] flex-col gap-6">
+            <h2 id="questions-heading" className="h2">
+              Four questions founders ask
+            </h2>
+            <p>
+              These all came up in one long conversation with the founder of a seed-stage AI
+              startup. I wrote the answers down so you can use them without talking to me.
+            </p>
+          </div>
+          <ul className="grid gap-6 md:grid-cols-2">
+            {QUESTIONS.map((item) => (
+              <li key={item.href} className="tile flex flex-col items-start gap-4 md:!p-8">
+                <span className="icon-tile">
+                  <TopicIcon topic={item.topic} />
+                </span>
+                <h3 className="h3">{item.question}</h3>
+                <p>{item.answer}</p>
+                <Link
+                  href={item.href}
+                  className="link-arrow mt-auto pt-2 text-[1.0625rem]"
+                >
+                  {item.linkLabel}
+                  <IconArrowRight width={18} height={18} />
+                </Link>
+              </li>
             ))}
-          </div>
+          </ul>
         </div>
       </section>
 
-      {/* Results Counter */}
-      <section className="py-20 px-6">
-        <div className="max-w-5xl mx-auto">
-          <p className="text-center text-sm uppercase tracking-widest text-indigo-400 mb-12">
-            Proven Results
-          </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
-            {results.map((r) => (
-              <div
-                key={r.label}
-                className="p-6 bg-gray-900 rounded-2xl border border-gray-800 text-center hover:border-indigo-500/40 transition"
-              >
-                <div className="text-2xl mb-3">{r.icon}</div>
-                <p className="text-2xl md:text-3xl font-bold text-indigo-400">{r.number}</p>
-                <p className="mt-2 text-xs text-gray-400 leading-snug">{r.label}</p>
-              </div>
+      {/* Heading, one-line lead, four numbered steps. */}
+      <section className="section" aria-labelledby="how-heading">
+        <div className="page flex flex-col gap-10">
+          <div className="flex max-w-[62ch] flex-col gap-6">
+            <p className="eyebrow">How it works</p>
+            <h2 id="how-heading" className="h2">
+              What Services-as-Software means here
+            </h2>
+            <p className="lead">
+              Services can scale like software now. For you that means the advice comes from a
+              person, and AI agents and a simple tracker do the legwork between calls.
+            </p>
+          </div>
+          <ol className="grid gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-4">
+            {STEPS.map((step, index) => (
+              <li key={step.title} className="flex flex-col items-start gap-4">
+                <div className="flex items-center gap-3">
+                  <span className="marker">{String(index + 1).padStart(2, "0")}</span>
+                  <span className="text-accent">{step.icon}</span>
+                </div>
+                <h3 className="h3">{step.title}</h3>
+                <p className="text-[1.0625rem]">{step.body}</p>
+              </li>
             ))}
-          </div>
-          <div className="text-center mt-8">
-            <Link href="/case-studies" className="text-indigo-400 hover:text-indigo-300 font-medium transition text-sm">
-              Read the full case studies →
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* Services */}
-      <section className="py-24 px-6 bg-gray-900/30">
-        <div className="max-w-6xl mx-auto">
-          <h2 className="text-3xl md:text-4xl font-bold text-center mb-16">
-            How We Help
-          </h2>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            {services.map((s) => (
-              <div key={s.title} className="p-8 bg-gray-900 rounded-2xl border border-gray-800 hover:border-indigo-500/50 transition">
-                <span className="text-4xl">{s.icon}</span>
-                <h3 className="text-xl font-semibold mt-4 mb-3">{s.title}</h3>
-                <p className="text-gray-400">{s.desc}</p>
-              </div>
-            ))}
-          </div>
-          <div className="text-center mt-12">
-            <Link href="/services" className="text-indigo-400 hover:text-indigo-300 font-medium transition">
-              View all services →
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* Testimonial Carousel */}
-      <TestimonialCarousel />
-
-      {/* Pricing Preview */}
-      <section className="py-24 px-6">
-        <div className="max-w-6xl mx-auto">
-          <h2 className="text-3xl md:text-4xl font-bold text-center mb-4">
-            Simple, Scalable Pricing
-          </h2>
-          <p className="text-center text-gray-400 mb-16 max-w-xl mx-auto">
-            From one-off automations to full enterprise AI orchestration.
+          </ol>
+          <p className="caption max-w-[70ch]">
+            The weekly rhythm is a starting point. We set the days and times with your team.
           </p>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            {pricingPreview.map((p) => (
-              <div key={p.tier} className="p-8 bg-gray-950 rounded-2xl border border-gray-800 text-center">
-                <h3 className="text-lg font-semibold mb-4">{p.tier}</h3>
-                <p className="text-3xl font-bold">
-                  {p.price}
-                  <span className="text-base font-normal text-gray-400">{p.unit}</span>
-                </p>
-                <p className="mt-3 text-gray-400 text-sm">{p.desc}</p>
-              </div>
-            ))}
+        </div>
+      </section>
+
+      {/* Three delivery models. No prices on purpose. */}
+      <section className="section" aria-labelledby="ways-heading">
+        <div className="page flex flex-col gap-10">
+          <div className="flex max-w-[62ch] flex-col gap-6">
+            <h2 id="ways-heading" className="h2">
+              Three ways to work together
+            </h2>
+            <p>
+              The work is the same in each one. What changes is how much of it I do and how much
+              your team does.
+            </p>
           </div>
-          <div className="text-center mt-12">
-            <Link href="/pricing" className="text-indigo-400 hover:text-indigo-300 font-medium transition">
-              See full pricing details →
+          <ul className="grid gap-6 md:grid-cols-3">
+            {WAYS.map((way) => (
+              <li key={way.title} className="tile flex flex-col items-start gap-4">
+                <span className="icon-tile">{way.icon}</span>
+                <h3 className="h3">{way.title}</h3>
+                <p>{way.body}</p>
+              </li>
+            ))}
+          </ul>
+          <div className="flex flex-col items-start gap-6 sm:flex-row sm:items-center">
+            <Link href="/services" className="btn btn-secondary">
+              See how the work runs
+            </Link>
+            <p className="caption">All three are built around a weekly call.</p>
+          </div>
+        </div>
+      </section>
+
+      {/* Quote bar on the left, the person on the right. */}
+      <section className="section" aria-labelledby="who-heading">
+        <div className="page grid gap-12 lg:grid-cols-2 lg:gap-16">
+          <figure className="quote flex flex-col gap-4 self-start">
+            <blockquote className="lead">
+              Three or four years into my own company I was still asking which numbers mattered,
+              and pricing felt like the Bermuda Triangle. So if you haven&apos;t worked it all out
+              yet, give yourself a break.
+            </blockquote>
+            <figcaption className="caption">{SITE.founder.name}, Signalhaus</figcaption>
+          </figure>
+          <div className="flex flex-col items-start gap-6">
+            <p className="eyebrow">Who you&apos;d be working with</p>
+            <h2 id="who-heading" className="h2">
+              {SITE.founder.name}
+            </h2>
+            <p>{SITE.founder.bio}</p>
+            <p>
+              I&apos;m selective about who I take on. It has to be someone I can actually help.
+            </p>
+            <Link href="/about" className="link-arrow">
+              More about Signalhaus
+              <IconArrowRight width={18} height={18} />
             </Link>
           </div>
         </div>
       </section>
 
-      {/* CTA */}
-      <section className="py-24 px-6 bg-gray-900/50">
-        <div className="max-w-3xl mx-auto text-center">
-          <h2 className="text-3xl md:text-4xl font-bold mb-6">
-            Stop Burning Budget on AI Projects That Never Ship
-          </h2>
-          <p className="text-gray-400 text-lg mb-10">
-            Most engagements start delivering ROI within 30 days. No six-month runway, no bloated retainer, no risk. Book a free strategy call and we&apos;ll map your highest-impact automation opportunities in 30 minutes.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link
-              href="/contact"
-              className="inline-flex px-8 py-4 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-lg font-semibold transition"
-            >
-              Let&apos;s Talk
-            </Link>
-            <Link
-              href="/case-studies"
-              className="inline-flex px-8 py-4 border border-gray-700 hover:border-gray-500 rounded-xl text-lg font-semibold transition"
-            >
-              Read Case Studies
-            </Link>
-          </div>
+      <section className="section" aria-label="The free toolkit">
+        <div className="page">
+          <ToolkitCallout />
         </div>
       </section>
+
+      <LeadSection id="talk" source="landing" heading="Tell me what you're working on">
+        <p>
+          A few plain sentences is plenty. Tell me what you&apos;re building and where you&apos;re
+          stuck, and pick the topic that&apos;s closest.
+        </p>
+        <p>
+          If you&apos;d rather read first, the <Link href="/blog">guides</Link> cover the same
+          ground.
+        </p>
+      </LeadSection>
+
+      <ClosingCard
+        heading="Give yourself a break. Then pick one number."
+        cta={{
+          label: "Read how to pick it",
+          href: "/blog/data-driven-decision-making-for-startups",
+        }}
+      />
     </>
   );
 }

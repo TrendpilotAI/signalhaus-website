@@ -1,49 +1,42 @@
 import type { MetadataRoute } from "next";
 import { getAllPostsMeta } from "@/lib/mdx";
+import { absoluteUrl } from "@/lib/site";
 
-const BASE_URL = "https://www.signalhaus.ai";
-
-// Static routes with priorities and change frequencies
 const STATIC_ROUTES: Array<{
   path: string;
   priority: number;
   changeFrequency: MetadataRoute.Sitemap[number]["changeFrequency"];
 }> = [
-  { path: "/", priority: 1.0, changeFrequency: "weekly" },
-  { path: "/services", priority: 0.9, changeFrequency: "monthly" },
-  { path: "/about", priority: 0.7, changeFrequency: "monthly" },
-  { path: "/pricing", priority: 0.8, changeFrequency: "weekly" },
-  { path: "/blog", priority: 0.8, changeFrequency: "daily" },
-  { path: "/contact", priority: 0.6, changeFrequency: "monthly" },
-  { path: "/case-studies", priority: 0.8, changeFrequency: "monthly" },
-  { path: "/roi-calculator", priority: 0.7, changeFrequency: "monthly" },
+  { path: "/", priority: 1, changeFrequency: "monthly" },
+  { path: "/services", priority: 0.8, changeFrequency: "monthly" },
+  { path: "/blog", priority: 0.8, changeFrequency: "weekly" },
+  { path: "/about", priority: 0.6, changeFrequency: "monthly" },
+  { path: "/contact", priority: 0.6, changeFrequency: "yearly" },
 ];
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  // Static pages
-  const staticEntries: MetadataRoute.Sitemap = STATIC_ROUTES.map(
-    ({ path, priority, changeFrequency }) => ({
-      url: `${BASE_URL}${path}`,
-      lastModified: new Date(),
+  const posts = getAllPostsMeta();
+  const newest = posts.reduce<string | undefined>(
+    (latest, post) => {
+      const changed = post.updated ?? post.date;
+      return !latest || changed > latest ? changed : latest;
+    },
+    undefined
+  );
+  const siteModified = newest ? new Date(newest) : undefined;
+
+  return [
+    ...STATIC_ROUTES.map(({ path, priority, changeFrequency }) => ({
+      url: absoluteUrl(path),
+      lastModified: siteModified,
       changeFrequency,
       priority,
-    })
-  );
-
-  // Dynamic blog post pages — auto-discovered from MDX files
-  let blogEntries: MetadataRoute.Sitemap = [];
-  try {
-    const posts = getAllPostsMeta();
-    blogEntries = posts.map((post) => ({
-      url: `${BASE_URL}/blog/${post.slug}`,
-      lastModified: post.date ? new Date(post.date) : new Date(),
+    })),
+    ...posts.map((post) => ({
+      url: absoluteUrl(`/blog/${post.slug}`),
+      lastModified: new Date(post.updated ?? post.date),
       changeFrequency: "monthly" as const,
-      priority: 0.6,
-    }));
-  } catch {
-    // getAllPostsMeta can throw if content dir missing (e.g. build environment)
-    // Gracefully skip dynamic entries rather than fail the build
-  }
-
-  return [...staticEntries, ...blogEntries];
+      priority: 0.7,
+    })),
+  ];
 }

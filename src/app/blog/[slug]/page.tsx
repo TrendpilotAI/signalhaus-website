@@ -1,22 +1,28 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { MDXRemote } from "next-mdx-remote/rsc";
-import {
-  getAllPostsMeta,
-  getPostBySlug,
-  getAdjacentPosts,
-  formatDate,
-} from "@/lib/mdx";
+import type { AnchorHTMLAttributes, HTMLAttributes, ReactNode } from "react";
+import ClosingCard from "@/components/ClosingCard";
 import JsonLd from "@/components/JsonLd";
+import LeadSection from "@/components/LeadSection";
+import PostList from "@/components/PostList";
+import ToolkitCallout from "@/components/ToolkitCallout";
+import { extractFaq } from "@/lib/faq";
+import { extractHeadings, headingId } from "@/lib/headings";
+import { articleJsonLd, articleUrl, breadcrumbJsonLd, faqPageJsonLd, type JsonLdObject } from "@/lib/jsonld";
+import { topicLabel } from "@/lib/leads/schema";
+import { formatDate, getAllPostsMeta, getPostBySlug } from "@/lib/mdx";
+import { SITE } from "@/lib/site";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
 }
 
-export async function generateStaticParams() {
-  const posts = getAllPostsMeta();
-  return posts.map((p) => ({ slug: p.slug }));
+export const dynamicParams = false;
+
+export function generateStaticParams() {
+  return getAllPostsMeta().map((post) => ({ slug: post.slug }));
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -26,63 +32,57 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   return {
     title: post.title,
     description: post.excerpt,
-    alternates: { canonical: `https://www.signalhaus.ai/blog/${slug}` },
+    authors: [{ name: post.author, url: "/about" }],
+    alternates: { canonical: `/blog/${slug}` },
     openGraph: {
+      type: "article",
       title: post.title,
       description: post.excerpt,
-      images: [{ url: "/og-image.png", width: 1200, height: 630 }],
+      url: `/blog/${slug}`,
+      publishedTime: post.date,
+      modifiedTime: post.updated ?? post.date,
+      authors: [post.author],
+      tags: post.tags,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: post.title,
+      description: post.excerpt,
     },
   };
 }
 
+function textOf(node: ReactNode): string {
+  if (typeof node === "string" || typeof node === "number") return String(node);
+  if (Array.isArray(node)) return node.map(textOf).join("");
+  if (node && typeof node === "object" && "props" in node) {
+    return textOf((node.props as { children?: ReactNode }).children);
+  }
+  return "";
+}
+
 const mdxComponents = {
-  /* Map MDX h1 → rendered h2 to preserve single-h1 hierarchy (page h1 is the post title) */
-  h1: (props: React.HTMLAttributes<HTMLHeadingElement>) => (
-    <h2 className="text-3xl font-bold text-white mt-12 mb-4" {...props} />
+  // The page title is the only h1, so a stray "# heading" in a post becomes an h2.
+  h1: ({ children, ...props }: HTMLAttributes<HTMLHeadingElement>) => (
+    <h2 id={headingId(textOf(children))} {...props}>
+      {children}
+    </h2>
   ),
-  h2: (props: React.HTMLAttributes<HTMLHeadingElement>) => (
-    <h2 className="text-2xl font-bold text-white mt-12 mb-4" {...props} />
+  h2: ({ children, ...props }: HTMLAttributes<HTMLHeadingElement>) => (
+    <h2 id={headingId(textOf(children))} {...props}>
+      {children}
+    </h2>
   ),
-  h3: (props: React.HTMLAttributes<HTMLHeadingElement>) => (
-    <h3 className="text-xl font-semibold text-white mt-8 mb-3" {...props} />
-  ),
-  p: (props: React.HTMLAttributes<HTMLParagraphElement>) => (
-    <p className="text-gray-300 leading-relaxed mb-4" {...props} />
-  ),
-  ul: (props: React.HTMLAttributes<HTMLUListElement>) => (
-    <ul className="list-disc list-inside space-y-2 ml-4 text-gray-300 mb-4" {...props} />
-  ),
-  ol: (props: React.HTMLAttributes<HTMLOListElement>) => (
-    <ol className="list-decimal list-inside space-y-2 ml-4 text-gray-300 mb-4" {...props} />
-  ),
-  li: (props: React.HTMLAttributes<HTMLLIElement>) => (
-    <li className="text-gray-300" {...props} />
-  ),
-  strong: (props: React.HTMLAttributes<HTMLElement>) => (
-    <strong className="text-white font-semibold" {...props} />
-  ),
-  a: (props: React.AnchorHTMLAttributes<HTMLAnchorElement>) => (
-    <a className="text-indigo-400 hover:text-indigo-300 underline" {...props} />
-  ),
-  blockquote: (props: React.HTMLAttributes<HTMLElement>) => (
-    <blockquote
-      className="border-l-4 border-indigo-500 pl-6 italic text-gray-400 my-6"
-      {...props}
-    />
-  ),
-  code: (props: React.HTMLAttributes<HTMLElement>) => (
-    <code
-      className="bg-gray-800 text-indigo-300 px-1.5 py-0.5 rounded text-sm font-mono"
-      {...props}
-    />
-  ),
-  pre: (props: React.HTMLAttributes<HTMLPreElement>) => (
-    <pre
-      className="bg-gray-800 rounded-xl p-6 overflow-x-auto text-sm font-mono text-gray-300 my-6"
-      {...props}
-    />
-  ),
-  hr: () => <hr className="border-gray-800 my-12" />,
+  a: ({ href = "", children, ...props }: AnchorHTMLAttributes<HTMLAnchorElement>) =>
+    href.startsWith("/") || href.startsWith("#") ? (
+      <Link href={href} {...props}>
+        {children}
+      </Link>
+    ) : (
+      <a href={href} target="_blank" rel="noopener" {...props}>
+        {children}
+      </a>
+    ),
 };
 
 export default async function BlogPostPage({ params }: PageProps) {
@@ -90,135 +90,112 @@ export default async function BlogPostPage({ params }: PageProps) {
   const post = getPostBySlug(slug);
   if (!post) notFound();
 
-  const { prev, next } = getAdjacentPosts(slug);
+  const url = articleUrl(slug);
+  const headings = extractHeadings(post.content);
+  const faq = faqPageJsonLd(extractFaq(post.content), url);
+  const otherPosts = getAllPostsMeta().filter((other) => other.slug !== slug);
 
-  const articleSchema = {
-    "@context": "https://schema.org",
-    "@type": "Article",
-    "@id": `https://www.signalhaus.ai/blog/${slug}`,
-    headline: post.title,
-    description: post.excerpt,
-    url: `https://www.signalhaus.ai/blog/${slug}`,
-    datePublished: post.date,
-    dateModified: post.date,
-    author: {
-      "@type": "Person",
-      name: post.author,
-      url: "https://www.signalhaus.ai/about",
-    },
-    publisher: {
-      "@type": "Organization",
-      "@id": "https://www.signalhaus.ai/#organization",
-      name: "SignalHaus",
-      logo: {
-        "@type": "ImageObject",
-        url: "https://www.signalhaus.ai/logo.png",
-      },
-    },
-    image: {
-      "@type": "ImageObject",
-      url: "https://www.signalhaus.ai/og-image.png",
-      width: 1200,
-      height: 630,
-    },
-    keywords: post.tags.join(", "),
-    articleSection: "AI & Technology",
-    inLanguage: "en-US",
-    isPartOf: {
-      "@type": "Blog",
-      "@id": "https://www.signalhaus.ai/blog",
-      name: "SignalHaus Blog",
-      publisher: { "@id": "https://www.signalhaus.ai/#organization" },
-    },
-  };
+  const jsonLd: JsonLdObject[] = [
+    articleJsonLd(post),
+    breadcrumbJsonLd([
+      { name: "Home", path: "/" },
+      { name: "Guides", path: "/blog" },
+      { name: post.title, path: `/blog/${slug}` },
+    ]),
+  ];
+  if (faq) jsonLd.push(faq);
 
   return (
-    <article className="pt-32 pb-24 px-6">
-      <JsonLd data={articleSchema} />
-      <div className="max-w-3xl mx-auto">
-        {/* Back link */}
-        <Link
-          href="/blog"
-          className="text-indigo-400 hover:text-indigo-300 text-sm mb-8 inline-block"
-        >
-          ← Back to Blog
-        </Link>
+    <>
+      <JsonLd data={jsonLd} />
 
-        {/* Meta */}
-        <div className="flex flex-wrap items-center gap-3 text-sm text-gray-500 mb-4">
-          <span>{formatDate(post.date)}</span>
-          <span>·</span>
-          <span>{post.readingTime}</span>
-          <span>·</span>
-          <span className="text-gray-400">{post.author}</span>
-        </div>
-
-        {/* Tags */}
-        <div className="flex flex-wrap gap-2 mb-6">
-          {post.tags.map((tag) => (
-            <Link
-              key={tag}
-              href={`/blog?tag=${encodeURIComponent(tag)}`}
-              className="px-3 py-1 bg-indigo-900/40 text-indigo-400 text-xs rounded-full hover:bg-indigo-900/70 transition"
-            >
-              {tag}
+      <article>
+        <header className="page flex flex-col gap-6 pb-12 pt-10 md:pt-16">
+          <nav aria-label="Breadcrumb" className="caption">
+            <Link href="/" className="link-quiet">
+              Home
+            </Link>{" "}
+            /{" "}
+            <Link href="/blog" className="link-quiet">
+              Guides
             </Link>
-          ))}
-        </div>
-
-        {/* Title */}
-        <h1 className="text-3xl md:text-4xl font-bold mb-10">{post.title}</h1>
-
-        {/* Content */}
-        <div className="prose prose-invert max-w-none">
-          <MDXRemote source={post.content} components={mdxComponents} />
-        </div>
-
-        {/* CTA */}
-        <div className="mt-16 p-8 bg-gray-900 rounded-2xl border border-gray-800 text-center">
-          <p className="text-lg font-semibold text-white mb-4">
-            Ready to deploy AI that actually works?
-          </p>
-          <Link
-            href="/contact"
-            className="inline-flex px-6 py-3 bg-indigo-600 hover:bg-indigo-500 rounded-xl font-semibold transition"
-          >
-            Book a Free Consultation
-          </Link>
-        </div>
-
-        {/* Prev/Next */}
-        {(prev || next) && (
-          <nav className="mt-16 grid grid-cols-1 sm:grid-cols-2 gap-6">
-            {prev ? (
-              <Link
-                href={`/blog/${prev.slug}`}
-                className="p-6 bg-gray-900 rounded-2xl border border-gray-800 hover:border-indigo-500/50 transition group"
-              >
-                <p className="text-xs text-gray-500 mb-2">← Newer</p>
-                <p className="text-sm font-medium group-hover:text-indigo-400 transition line-clamp-2">
-                  {prev.title}
-                </p>
-              </Link>
-            ) : (
-              <div />
-            )}
-            {next ? (
-              <Link
-                href={`/blog/${next.slug}`}
-                className="p-6 bg-gray-900 rounded-2xl border border-gray-800 hover:border-indigo-500/50 transition group text-right"
-              >
-                <p className="text-xs text-gray-500 mb-2">Older →</p>
-                <p className="text-sm font-medium group-hover:text-indigo-400 transition line-clamp-2">
-                  {next.title}
-                </p>
-              </Link>
-            ) : (
-              <div />
-            )}
           </nav>
-        )}
-      </div>
-    </article>
+          {post.topic ? <p className="eyebrow">{topicLabel(post.topic)}</p> : null}
+          <h1 className="h1 max-w-[20ch]">{post.title}</h1>
+          <p className="lead max-w-[60ch]">{post.excerpt}</p>
+          <p className="caption">
+            <Link href="/about" className="link-quiet">
+              {post.author}
+            </Link>{" "}
+            · <time dateTime={post.date}>{formatDate(post.date)}</time> · {post.readingTime}
+          </p>
+        </header>
+
+        <div className="page grid gap-12 pb-16 lg:grid-cols-[minmax(0,720px)_1fr] lg:gap-16">
+          <div className="prose-sh min-w-0">
+            <MDXRemote source={post.content} components={mdxComponents} />
+          </div>
+
+          {headings.length > 0 ? (
+            <aside className="order-first lg:order-none">
+              <nav aria-label="On this page" className="tile lg:sticky lg:top-8">
+                <p className="eyebrow mb-4">On this page</p>
+                <ol className="flex flex-col gap-3">
+                  {headings.map((heading, index) => (
+                    <li key={heading.id} className="flex gap-3 text-base leading-snug">
+                      <span className="marker pt-[3px] !text-base">
+                        {String(index + 1).padStart(2, "0")}
+                      </span>
+                      <a href={`#${heading.id}`} className="link-quiet">
+                        {heading.text}
+                      </a>
+                    </li>
+                  ))}
+                </ol>
+              </nav>
+            </aside>
+          ) : null}
+        </div>
+
+        <footer className="page pb-8">
+          <div className="quote max-w-[720px]">
+            <p className="text-[1.0625rem]">
+              Written by <strong className="font-bold">{post.author}</strong>
+              {post.author === SITE.founder.name ? `, an ${SITE.founder.bio}` : "."} Signalhaus is
+              his Services-as-Software consulting firm, and there&apos;s more about it on the{" "}
+              <Link href="/">home page</Link>.
+            </p>
+          </div>
+        </footer>
+      </article>
+
+      <LeadSection
+        id="talk"
+        source="blog-post"
+        postSlug={slug}
+        defaultTopic={post.topic}
+        heading="Stuck on this one?"
+      >
+        <p>
+          Tell me what you&apos;re working on and where it&apos;s going wrong. A few plain sentences
+          is plenty.
+        </p>
+      </LeadSection>
+
+      <section className="section" aria-labelledby="more-heading">
+        <div className="page flex flex-col gap-10">
+          <h2 id="more-heading" className="h2">
+            More guides
+          </h2>
+          <PostList posts={otherPosts} headingLevel="h3" />
+          <ToolkitCallout />
+        </div>
+      </section>
+
+      <ClosingCard
+        heading="Give yourself a break. Then pick one number."
+        cta={{ label: "See how I work with founders", href: "/services" }}
+      />
+    </>
   );
 }
