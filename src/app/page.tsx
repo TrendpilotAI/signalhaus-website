@@ -8,11 +8,12 @@ import ToolkitCallout from "@/components/ToolkitCallout";
 import TopicIcon from "@/components/TopicIcon";
 import type { LeadTopic } from "@/lib/leads/schema";
 import { SITE } from "@/lib/site";
+import { alternatesFor } from "@/lib/metadata";
 
 export const metadata: Metadata = {
   title: { absolute: `${SITE.name} - ${SITE.tagline}` },
   description: SITE.description,
-  alternates: { canonical: "/" },
+  alternates: alternatesFor("/"),
 };
 
 const QUESTIONS: Array<{

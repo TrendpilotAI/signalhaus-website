@@ -9,6 +9,7 @@ import JsonLd from "@/components/JsonLd";
 import LinkedInInsight from "@/components/LinkedInInsight";
 import MicrosoftClarity from "@/components/MicrosoftClarity";
 import { organizationJsonLd, websiteJsonLd } from "@/lib/jsonld";
+import { alternatesFor, shareMetadataFor } from "@/lib/metadata";
 import { SITE, SITE_URL } from "@/lib/site";
 
 const newsreader = Newsreader({
@@ -44,24 +45,9 @@ export const metadata: Metadata = {
   description: SITE.description,
   applicationName: SITE.name,
   authors: [{ name: SITE.founder.name, url: `${SITE_URL}/about` }],
-  openGraph: {
-    type: "website",
-    locale: "en_US",
-    url: SITE_URL,
-    siteName: SITE.name,
-    title: DEFAULT_TITLE,
-    description: SITE.description,
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: DEFAULT_TITLE,
-    description: SITE.description,
-  },
+  ...shareMetadataFor({ title: DEFAULT_TITLE, description: SITE.description, path: "/" }),
   robots: { index: true, follow: true },
-  alternates: {
-    canonical: "/",
-    types: { "application/rss+xml": [{ url: "/feed.xml", title: `${SITE.name} guides` }] },
-  },
+  alternates: alternatesFor("/"),
 };
 
 export const viewport: Viewport = {

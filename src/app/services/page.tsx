@@ -5,6 +5,7 @@ import { IconAgent, IconCalendar, IconChart, IconCheck, IconHands, IconTalk, Ico
 import JsonLd from "@/components/JsonLd";
 import ToolkitCallout from "@/components/ToolkitCallout";
 import { breadcrumbJsonLd } from "@/lib/jsonld";
+import { alternatesFor, shareMetadataFor } from "@/lib/metadata";
 
 const DESCRIPTION =
   "How Signalhaus works with founders. Advice from a person, AI agents doing the legwork between calls, a simple weekly rhythm, and three ways to work together.";
@@ -12,8 +13,8 @@ const DESCRIPTION =
 export const metadata: Metadata = {
   title: "Services",
   description: DESCRIPTION,
-  alternates: { canonical: "/services" },
-  openGraph: { title: "Services", description: DESCRIPTION, url: "/services" },
+  alternates: alternatesFor("/services"),
+  ...shareMetadataFor({ title: "Services", description: DESCRIPTION, path: "/services" }),
 };
 
 const WORK = [

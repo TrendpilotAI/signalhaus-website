@@ -13,6 +13,7 @@ import { extractHeadings, headingId } from "@/lib/headings";
 import { articleJsonLd, articleUrl, breadcrumbJsonLd, faqPageJsonLd, type JsonLdObject } from "@/lib/jsonld";
 import { topicLabel } from "@/lib/leads/schema";
 import { formatDate, getAllPostsMeta, getPostBySlug } from "@/lib/mdx";
+import { alternatesFor } from "@/lib/metadata";
 import { SITE } from "@/lib/site";
 
 interface PageProps {
@@ -33,9 +34,11 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     title: post.title,
     description: post.excerpt,
     authors: [{ name: post.author, url: "/about" }],
-    alternates: { canonical: `/blog/${slug}` },
+    alternates: alternatesFor(`/blog/${slug}`),
     openGraph: {
       type: "article",
+      locale: "en_US",
+      siteName: SITE.name,
       title: post.title,
       description: post.excerpt,
       url: `/blog/${slug}`,

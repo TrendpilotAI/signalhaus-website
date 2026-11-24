@@ -6,6 +6,7 @@ import JsonLd from "@/components/JsonLd";
 import ToolkitCallout from "@/components/ToolkitCallout";
 import { breadcrumbJsonLd, personJsonLd } from "@/lib/jsonld";
 import { SITE } from "@/lib/site";
+import { alternatesFor, shareMetadataFor } from "@/lib/metadata";
 
 const DESCRIPTION =
   "Signalhaus LLC is Nathan Stevenson's Services-as-Software consulting firm, an AI growth advisory for founders.";
@@ -13,8 +14,8 @@ const DESCRIPTION =
 export const metadata: Metadata = {
   title: "About",
   description: DESCRIPTION,
-  alternates: { canonical: "/about" },
-  openGraph: { title: "About Signalhaus", description: DESCRIPTION, url: "/about" },
+  alternates: alternatesFor("/about"),
+  ...shareMetadataFor({ title: "About Signalhaus", description: DESCRIPTION, path: "/about" }),
 };
 
 const PRINCIPLES = [

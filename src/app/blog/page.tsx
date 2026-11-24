@@ -6,6 +6,7 @@ import PostList from "@/components/PostList";
 import ToolkitCallout from "@/components/ToolkitCallout";
 import { breadcrumbJsonLd } from "@/lib/jsonld";
 import { getAllPostsMeta } from "@/lib/mdx";
+import { alternatesFor, shareMetadataFor } from "@/lib/metadata";
 
 const DESCRIPTION =
   "Plain how-to guides for founders on investor due diligence, positioning, priorities and data-driven decisions. Each one answers the question in the first couple of sentences.";
@@ -13,8 +14,8 @@ const DESCRIPTION =
 export const metadata: Metadata = {
   title: "How-to guides for founders",
   description: DESCRIPTION,
-  alternates: { canonical: "/blog" },
-  openGraph: { title: "How-to guides for founders", description: DESCRIPTION, url: "/blog" },
+  alternates: alternatesFor("/blog"),
+  ...shareMetadataFor({ title: "How-to guides for founders", description: DESCRIPTION, path: "/blog" }),
 };
 
 export default function BlogIndexPage() {

@@ -4,6 +4,7 @@ import { NoteOnItsWay } from "@/components/illustrations";
 import JsonLd from "@/components/JsonLd";
 import LeadForm from "@/components/LeadForm";
 import { breadcrumbJsonLd } from "@/lib/jsonld";
+import { alternatesFor, shareMetadataFor } from "@/lib/metadata";
 
 const DESCRIPTION =
   "Tell Nathan what you're working on. A few plain sentences about what you're building and where you're stuck is plenty.";
@@ -11,8 +12,8 @@ const DESCRIPTION =
 export const metadata: Metadata = {
   title: "Get in touch",
   description: DESCRIPTION,
-  alternates: { canonical: "/contact" },
-  openGraph: { title: "Get in touch", description: DESCRIPTION, url: "/contact" },
+  alternates: alternatesFor("/contact"),
+  ...shareMetadataFor({ title: "Get in touch", description: DESCRIPTION, path: "/contact" }),
 };
 
 const NOTES = [
