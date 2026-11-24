@@ -99,6 +99,8 @@ Without the Upstash variables the rate limiter falls back to memory, which does 
 
 Colours, type and components follow the Signalhaus design system. The tokens are in `src/app/globals.css`. Icons and illustrations are inline SVG in `src/components/icons.tsx` and `src/components/illustrations.tsx`. Share images are generated in `src/lib/og/card.tsx`.
 
+The three typefaces (Newsreader, Hanken Grotesk and DM Mono) are served from the site itself. `src/app/fonts.ts` loads the files from the `@fontsource` packages, so neither the build nor a visitor's browser makes a request to Google Fonts.
+
 ## Security headers
 
 `next.config.ts` sets a Content Security Policy, HSTS, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy` and `Permissions-Policy` on every route.

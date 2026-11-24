@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
-import { DM_Mono, Hanken_Grotesk, Newsreader } from "next/font/google";
 import "./globals.css";
+import { dmMono, hanken, newsreader } from "./fonts";
 import AttributionTracker from "@/components/AttributionTracker";
 import Footer from "@/components/Footer";
 import GoogleAnalytics from "@/components/GoogleAnalytics";
@@ -11,28 +11,6 @@ import MicrosoftClarity from "@/components/MicrosoftClarity";
 import { organizationJsonLd, websiteJsonLd } from "@/lib/jsonld";
 import { alternatesFor, shareMetadataFor } from "@/lib/metadata";
 import { SITE, SITE_URL } from "@/lib/site";
-
-const newsreader = Newsreader({
-  subsets: ["latin"],
-  weight: "400",
-  style: ["normal", "italic"],
-  variable: "--font-newsreader",
-  display: "swap",
-});
-
-const hanken = Hanken_Grotesk({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-hanken",
-  display: "swap",
-});
-
-const dmMono = DM_Mono({
-  subsets: ["latin"],
-  weight: "400",
-  variable: "--font-dm-mono",
-  display: "swap",
-});
 
 const DEFAULT_TITLE = `${SITE.name} - ${SITE.tagline}`;
 
