@@ -73,11 +73,11 @@ Sample lines:
 
 Use on: data-driven post, due diligence post.
 
-The decision threshold is the cure for endless data gathering. It also reads well to investors, who want to see that a founder knows what would change their mind.
+The decision threshold is the cure for endless data gathering. It is also a useful thing to have ready before an investor meeting.
 
 Sample lines:
 - Before you run the test, write down what result would make you act.
-- An investor will ask what would change your mind. It helps to have already asked yourself.
+- Know what would change your mind before somebody else asks.
 
 ### 6. "Every chart has to earn its place"
 
