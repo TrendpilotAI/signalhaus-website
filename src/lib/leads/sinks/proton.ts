@@ -14,6 +14,7 @@ export function protonRecipient(env: LeadEnv): string | null {
  */
 export const protonSink: LeadSink = {
   name: "proton",
+  kind: "real",
   isEnabled(env) {
     const to = protonRecipient(env);
     return isResendEnabled(env) && to !== null && to !== notifyRecipient(env);

@@ -31,6 +31,7 @@ export function leadLogEntry(lead: Lead) {
  */
 export const logSink: LeadSink = {
   name: "log",
+  kind: "stub",
   isEnabled: () => true,
   async deliver(lead, { logger }) {
     logger.info("[leads] new lead", JSON.stringify(leadLogEntry(lead)));

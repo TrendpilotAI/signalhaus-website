@@ -18,6 +18,7 @@ function escapeSlack(value: string): string {
  */
 export const slackSink: LeadSink = {
   name: "slack",
+  kind: "real",
   isEnabled: isSlackEnabled,
   async deliver(lead, { env, fetch }) {
     const webhookUrl = env.SLACK_WEBHOOK_URL;

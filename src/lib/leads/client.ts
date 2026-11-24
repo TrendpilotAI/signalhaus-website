@@ -1,4 +1,5 @@
 import {
+  DELIVERY_FAILED_MESSAGE,
   HONEYPOT_FIELD,
   type LeadAttribution,
   type LeadFieldErrors,
@@ -80,6 +81,9 @@ export async function submitLead(
   }
   if (response.status === 413) {
     return { ok: false, message: "That message is too long. Could you shorten it a little?", fieldErrors: {} };
+  }
+  if (response.status >= 500) {
+    return { ok: false, message: DELIVERY_FAILED_MESSAGE, fieldErrors: {} };
   }
   return { ok: false, message: GENERIC_ERROR, fieldErrors: {} };
 }

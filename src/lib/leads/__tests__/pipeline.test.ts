@@ -12,6 +12,19 @@ function okFetch(): FetchMock {
   return vi.fn<typeof fetch>(async () => jsonResponse({ id: "ok" }));
 }
 
+/** A fetch that never answers, and rejects the way the real one does when its signal aborts. */
+function hangingFetch(): FetchMock {
+  return vi.fn<typeof fetch>(
+    (_input, init) =>
+      new Promise<Response>((_resolve, reject) => {
+        const signal = init?.signal;
+        if (!signal) return;
+        if (signal.aborted) reject(signal.reason);
+        else signal.addEventListener("abort", () => reject(signal.reason), { once: true });
+      })
+  );
+}
+
 function run(
   env: LeadEnv,
   fetchMock: FetchMock = okFetch(),
@@ -66,9 +79,10 @@ describe("lead pipeline with nothing configured", () => {
     });
   });
 
-  it("keeps the log sink as the first sink", () => {
+  it("keeps the log sink as the first sink, and as the only stub", () => {
     expect(defaultSinks[0]).toBe(logSink);
     expect(logSink.isEnabled({})).toBe(true);
+    expect(defaultSinks.filter((sink) => sink.kind === "stub")).toEqual([logSink]);
   });
 });
 
@@ -385,53 +399,108 @@ describe("slack adapter gating", () => {
   });
 });
 
-describe("pipeline failure handling", () => {
-  it("still accepts the lead when an adapter fails", async () => {
-    const failing = vi.fn<typeof fetch>(async () => jsonResponse({ message: "nope" }, 500));
-    const { result, logger } = await run(
-      { LEAD_RESEND_ENABLED: "true", RESEND_API_KEY: "re_test", LEAD_NOTIFY_TO: "nathan@example.com" },
-      failing
-    );
+describe("which deliveries count", () => {
+  const resendOn: LeadEnv = {
+    LEAD_RESEND_ENABLED: "true",
+    RESEND_API_KEY: "re_test",
+    LEAD_NOTIFY_TO: "nathan@example.com",
+  };
+  const slackOn: LeadEnv = { LEAD_SLACK_ENABLED: "true", SLACK_WEBHOOK_URL: "https://hooks.slack.test/x" };
+  const lightfieldOn: LeadEnv = { LIGHTFIELD_API_KEY: "lf_test", LEAD_LIGHTFIELD_ENABLED: "true" };
+
+  function failing(): FetchMock {
+    return vi.fn<typeof fetch>(async () => jsonResponse({ message: "nope" }, 500));
+  }
+
+  it("marks every sink except the log as real", () => {
+    expect(
+      Object.fromEntries(defaultSinks.map((sink) => [sink.name, sink.kind]))
+    ).toEqual({ log: "stub", resend: "real", proton: "real", lightfield: "real", slack: "real" });
+  });
+
+  it("accepts on the log alone when no real sink is enabled", async () => {
+    const { result } = await run({});
     expect(result.accepted).toBe(true);
+  });
+
+  it.each([
+    ["Resend", resendOn],
+    ["Slack", slackOn],
+    ["Lightfield", lightfieldOn],
+  ])("is not accepted when %s is the only real sink and it fails", async (_name, env) => {
+    const { result, logger } = await run(env, failing());
+    expect(result.accepted).toBe(false);
     expect(statusOf(result.results, "log")).toBe("delivered");
-    expect(statusOf(result.results, "resend")).toBe("failed");
     expect(logger.error).toHaveBeenCalled();
   });
 
-  it("still accepts the lead when an adapter throws", async () => {
+  it("is not accepted when a real sink throws", async () => {
     const throwing = vi.fn<typeof fetch>(async () => {
       throw new Error("network down");
     });
-    const { result } = await run(
-      { LIGHTFIELD_API_KEY: "lf_test", LEAD_LIGHTFIELD_ENABLED: "true" },
-      throwing
-    );
-    expect(result.accepted).toBe(true);
-    expect(result.results.find((r) => r.sink === "lightfield")).toMatchObject({
+    const { result } = await run(lightfieldOn, throwing);
+    expect(result.accepted).toBe(false);
+    expect(result.results.find((r) => r.sink === "lightfield")).toEqual({
+      sink: "lightfield",
       status: "failed",
       error: "network down",
     });
   });
 
-  it("gives up on a sink that hangs", async () => {
-    const hanging: LeadSink = {
-      name: "hanging",
-      isEnabled: () => true,
-      deliver: () => new Promise<void>(() => {}),
-    };
-    const result = await runLeadPipeline(makeLead(), {
-      sinks: [logSink, hanging],
-      env: {},
-      logger: silentLogger(),
-      sinkTimeoutMs: 10,
-    });
+  it("is accepted when one real sink delivers and another fails", async () => {
+    const slackDown = vi.fn<typeof fetch>(async (input) =>
+      String(input).includes("slack") ? jsonResponse({}, 500) : jsonResponse({ id: "ok" })
+    );
+    const { result } = await run({ ...resendOn, ...slackOn }, slackDown);
+    expect(statusOf(result.results, "resend")).toBe("delivered");
+    expect(statusOf(result.results, "slack")).toBe("failed");
     expect(result.accepted).toBe(true);
-    expect(statusOf(result.results, "hanging")).toBe("failed");
   });
 
-  it("is not accepted when no sink takes the lead", async () => {
+  it("is not accepted when every enabled real sink fails", async () => {
+    const { result } = await run({ ...resendOn, ...slackOn, ...lightfieldOn }, failing());
+    expect(result.accepted).toBe(false);
+    for (const sink of ["resend", "slack", "lightfield"]) {
+      expect(statusOf(result.results, sink)).toBe("failed");
+    }
+  });
+
+  it("is accepted when the real sink delivers", async () => {
+    const { result } = await run(resendOn);
+    expect(result.accepted).toBe(true);
+  });
+
+  it("counts the Proton copy as a real delivery", async () => {
+    const { result } = await run({
+      LEAD_RESEND_ENABLED: "true",
+      RESEND_API_KEY: "re_test",
+      LEAD_PROTON_INBOX: "nathan@proton.me",
+    });
+    expect(statusOf(result.results, "proton")).toBe("delivered");
+    expect(result.accepted).toBe(true);
+  });
+
+  it("counts a real sink whose isEnabled throws as enabled and failed", async () => {
     const broken: LeadSink = {
       name: "broken",
+      kind: "real",
+      isEnabled: () => {
+        throw new Error("bad config");
+      },
+      deliver: async () => {},
+    };
+    const result = await runLeadPipeline(makeLead(), {
+      sinks: [logSink, broken],
+      env: {},
+      logger: silentLogger(),
+    });
+    expect(result.accepted).toBe(false);
+  });
+
+  it("is not accepted when the only sink fails", async () => {
+    const broken: LeadSink = {
+      name: "broken",
+      kind: "stub",
       isEnabled: () => true,
       deliver: async () => {
         throw new Error("boom");
@@ -443,5 +512,102 @@ describe("pipeline failure handling", () => {
       logger: silentLogger(),
     });
     expect(result.accepted).toBe(false);
+  });
+});
+
+describe("the shared deadline", () => {
+  const twoSinks: LeadEnv = {
+    LEAD_RESEND_ENABLED: "true",
+    RESEND_API_KEY: "re_test",
+    LEAD_NOTIFY_TO: "nathan@example.com",
+    LEAD_SLACK_ENABLED: "true",
+    SLACK_WEBHOOK_URL: "https://hooks.slack.test/x",
+  };
+
+  it("gives every sink's request a signal that is live while the pipeline runs", async () => {
+    const { fetchMock } = await run(twoSinks);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    for (const [, init] of fetchMock.mock.calls) {
+      expect(init?.signal).toBeInstanceOf(AbortSignal);
+      expect(init?.signal?.aborted).toBe(false);
+    }
+  });
+
+  it("aborts every request still in flight at the deadline", async () => {
+    const fetchMock = hangingFetch();
+    const result = await runLeadPipeline(makeLead(), {
+      sinks: defaultSinks,
+      env: twoSinks,
+      fetch: fetchMock,
+      logger: silentLogger(),
+      sinkTimeoutMs: 20,
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    for (const [, init] of fetchMock.mock.calls) {
+      expect(init?.signal?.aborted).toBe(true);
+    }
+    for (const sink of ["resend", "slack"]) {
+      expect(result.results.find((r) => r.sink === sink)).toEqual({
+        sink,
+        status: "failed",
+        error: "Timed out after 20ms",
+      });
+    }
+    expect(result.accepted).toBe(false);
+  });
+
+  it("keeps a signal the sink passes itself, and still applies the deadline", async () => {
+    const own = new AbortController();
+    const seen: AbortSignal[] = [];
+    const sink: LeadSink = {
+      name: "own-signal",
+      kind: "real",
+      isEnabled: () => true,
+      deliver: async (_lead, ctx) => {
+        await ctx.fetch("https://example.test/", { signal: own.signal });
+      },
+    };
+    const fetchMock = vi.fn<typeof fetch>(async (_input, init) => {
+      if (init?.signal) seen.push(init.signal);
+      return jsonResponse({});
+    });
+    await runLeadPipeline(makeLead(), { sinks: [sink], env: {}, fetch: fetchMock, logger: silentLogger() });
+
+    expect(seen[0].aborted).toBe(false);
+    own.abort();
+    expect(seen[0].aborted).toBe(true);
+  });
+
+  it("gives up on a sink that hangs without using fetch", async () => {
+    let signal: AbortSignal | undefined;
+    const hanging: LeadSink = {
+      name: "hanging",
+      kind: "real",
+      isEnabled: () => true,
+      deliver: (_lead, ctx) => {
+        signal = ctx.signal;
+        return new Promise<void>(() => {});
+      },
+    };
+    const result = await runLeadPipeline(makeLead(), {
+      sinks: [logSink, hanging],
+      env: {},
+      logger: silentLogger(),
+      sinkTimeoutMs: 10,
+    });
+    expect(statusOf(result.results, "hanging")).toBe("failed");
+    expect(statusOf(result.results, "log")).toBe("delivered");
+    expect(signal?.aborted).toBe(true);
+  });
+
+  it("does not leave a timer running after the sinks finish", async () => {
+    vi.useFakeTimers();
+    try {
+      await run({});
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

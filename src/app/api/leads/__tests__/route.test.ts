@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { validBody } from "@/lib/leads/__tests__/fixtures";
+import { DELIVERY_FAILED_MESSAGE } from "@/lib/leads/schema";
 import { RATE_LIMIT_MAX, resetInMemoryRateLimit } from "@/lib/rate-limit";
 import { POST } from "../route";
 
@@ -12,6 +13,9 @@ const ENV_KEYS = [
   "LEAD_PROTON_INBOX",
   "LEAD_LIGHTFIELD_ENABLED",
   "LIGHTFIELD_API_KEY",
+  "LIGHTFIELD_PIPELINE_OPTION",
+  "LIGHTFIELD_STAGE_LEAD",
+  "LIGHTFIELD_OPPORTUNITY_DESCRIPTION_FIELD",
   "LEAD_SLACK_ENABLED",
   "SLACK_WEBHOOK_URL",
   "UPSTASH_REDIS_REST_URL",
@@ -34,9 +38,26 @@ function loggedLeads(log: { mock: { calls: unknown[][] } }) {
     .map((call) => JSON.parse(call[1] as string));
 }
 
+function stubResend() {
+  vi.stubEnv("RESEND_API_KEY", "re_live_key");
+  vi.stubEnv("LEAD_RESEND_ENABLED", "true");
+  vi.stubEnv("LEAD_NOTIFY_TO", "nathan@example.com");
+}
+
+function stubSlack() {
+  vi.stubEnv("LEAD_SLACK_ENABLED", "true");
+  vi.stubEnv("SLACK_WEBHOOK_URL", "https://hooks.slack.test/services/x");
+}
+
+function stubLightfield() {
+  vi.stubEnv("LEAD_LIGHTFIELD_ENABLED", "true");
+  vi.stubEnv("LIGHTFIELD_API_KEY", "lf_key");
+}
+
 describe("POST /api/leads", () => {
   let fetchMock: ReturnType<typeof vi.fn<typeof fetch>>;
   let log: ReturnType<typeof vi.spyOn>;
+  let errorLog: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     resetInMemoryRateLimit();
@@ -45,7 +66,7 @@ describe("POST /api/leads", () => {
     vi.stubGlobal("fetch", fetchMock);
     log = vi.spyOn(console, "log").mockImplementation(() => {});
     vi.spyOn(console, "warn").mockImplementation(() => {});
-    vi.spyOn(console, "error").mockImplementation(() => {});
+    errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
   });
 
   afterEach(() => {
@@ -71,6 +92,21 @@ describe("POST /api/leads", () => {
         source: "blog-post",
         postSlug: "how-to-position-a-startup",
       });
+    });
+
+    it("never writes the name, the message or the full email to any console", async () => {
+      const consoles = [log, errorLog, vi.mocked(console.warn)];
+      stubResend();
+      fetchMock.mockResolvedValue(new Response("down", { status: 503 }));
+
+      await post(validBody());
+      await post(validBody({ name: "", email: "nope" }));
+
+      const written = JSON.stringify(consoles.flatMap((spy) => spy.mock.calls));
+      expect(written).toContain("a***@example.com");
+      for (const secret of ["Ada", "ada@example.com", "Example Labs", "Founder", "customer segment"]) {
+        expect(written).not.toContain(secret);
+      }
     });
 
     it("sends nothing anywhere when no adapter is configured", async () => {
@@ -113,16 +149,95 @@ describe("POST /api/leads", () => {
       expect(JSON.parse(String(init?.body)).from).toBe("Signalhaus leads <leads@send.signalhaus.ai>");
     });
 
-    it("still succeeds when an enabled adapter fails", async () => {
-      vi.stubEnv("RESEND_API_KEY", "re_live_key");
-      vi.stubEnv("LEAD_RESEND_ENABLED", "true");
-      vi.stubEnv("LEAD_NOTIFY_TO", "nathan@example.com");
+  });
+
+  describe("delivery", () => {
+    function failFor(...hosts: string[]) {
+      fetchMock.mockImplementation(async (input) =>
+        hosts.some((host) => String(input).includes(host))
+          ? new Response("down", { status: 503 })
+          : new Response(JSON.stringify({ id: "ok", data: [] }), { status: 200 })
+      );
+    }
+
+    it("succeeds on the log alone when no real sink is enabled", async () => {
+      const response = await post(validBody());
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({ success: true });
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ["Resend", stubResend],
+      ["Lightfield", stubLightfield],
+      ["Slack", stubSlack],
+    ])("succeeds when %s is the enabled sink and it delivers", async (_name, enable) => {
+      enable();
+      failFor();
+      const response = await post(validBody());
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({ success: true });
+      expect(fetchMock).toHaveBeenCalled();
+    });
+
+    it.each([
+      ["Resend", stubResend],
+      ["Lightfield", stubLightfield],
+      ["Slack", stubSlack],
+    ])("returns an error when %s is the only enabled sink and it fails", async (_name, enable) => {
+      enable();
       fetchMock.mockResolvedValue(new Response("down", { status: 503 }));
 
       const response = await post(validBody());
 
-      expect(response.status).toBe(200);
+      expect(response.status).toBe(502);
+      expect(await response.json()).toEqual({ error: DELIVERY_FAILED_MESSAGE });
       expect(loggedLeads(log)).toHaveLength(1);
+      expect(errorLog.mock.calls.some((call: unknown[]) => String(call[0]).includes("was not delivered"))).toBe(true);
+    });
+
+    it("returns an error when an enabled sink cannot be reached at all", async () => {
+      stubSlack();
+      fetchMock.mockRejectedValue(new TypeError("fetch failed"));
+      const response = await post(validBody());
+      expect(response.status).toBe(502);
+      expect(await response.json()).toEqual({ error: DELIVERY_FAILED_MESSAGE });
+    });
+
+    it("succeeds when one enabled sink delivers and the others fail", async () => {
+      stubResend();
+      stubLightfield();
+      stubSlack();
+      failFor("api.resend.com", "api.lightfield.app");
+
+      const response = await post(validBody());
+
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({ success: true });
+    });
+
+    it("returns an error when every enabled sink fails", async () => {
+      stubResend();
+      stubLightfield();
+      stubSlack();
+      failFor("api.resend.com", "api.lightfield.app", "hooks.slack.test");
+
+      const response = await post(validBody());
+
+      expect(response.status).toBe(502);
+      expect(await response.json()).toEqual({ error: DELIVERY_FAILED_MESSAGE });
+    });
+
+    it("does not count a sink that is switched off as a failure", async () => {
+      stubSlack();
+      vi.stubEnv("RESEND_API_KEY", "re_preview_key");
+      vi.stubEnv("LIGHTFIELD_API_KEY", "lf_key");
+      failFor();
+
+      const response = await post(validBody());
+
+      expect(response.status).toBe(200);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -143,6 +258,11 @@ describe("POST /api/leads", () => {
       const response = await post(body);
       expect(response.status).toBe(422);
       expect((await response.json()).fieldErrors.email).toBeDefined();
+    });
+
+    it("accepts ordinary text that has a word starting with 'on' before an equals sign", async () => {
+      const response = await post(validBody({ workingOn: "Our onboarding = 3 weeks and it should be one." }));
+      expect(response.status).toBe(200);
     });
 
     it("returns 422 for script-like content", async () => {
@@ -178,9 +298,7 @@ describe("POST /api/leads", () => {
 
   describe("honeypot", () => {
     it("answers success but drops the submission", async () => {
-      vi.stubEnv("RESEND_API_KEY", "re_live_key");
-      vi.stubEnv("LEAD_RESEND_ENABLED", "true");
-      vi.stubEnv("LEAD_NOTIFY_TO", "nathan@example.com");
+      stubResend();
 
       const response = await post(validBody({ website: "https://spam.example" }));
 

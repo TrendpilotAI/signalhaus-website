@@ -110,6 +110,7 @@ class LightfieldClient {
  */
 export const lightfieldSink: LeadSink = {
   name: "lightfield",
+  kind: "real",
   isEnabled: isLightfieldEnabled,
   async deliver(lead, ctx) {
     const client = new LightfieldClient(ctx);

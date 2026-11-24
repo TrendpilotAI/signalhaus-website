@@ -24,6 +24,9 @@ export function topicLabel(topic: LeadTopic): string {
  */
 export const HONEYPOT_FIELD = "website";
 
+/** Shown when the lead could not be handed to anyone. The form keeps what was typed. */
+export const DELIVERY_FAILED_MESSAGE = "Something went wrong on our end, please try again in a minute.";
+
 export const UTM_KEYS = ["source", "medium", "campaign", "term", "content"] as const;
 export type UtmKey = (typeof UTM_KEYS)[number];
 export type UtmParams = Partial<Record<UtmKey, string>>;

@@ -12,6 +12,7 @@ export function notifyRecipient(env: LeadEnv): string | null {
  */
 export const resendSink: LeadSink = {
   name: "resend",
+  kind: "real",
   isEnabled: (env) => isResendEnabled(env) && notifyRecipient(env) !== null,
   async deliver(lead, ctx) {
     const to = notifyRecipient(ctx.env);

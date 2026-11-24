@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { runLeadPipeline } from "@/lib/leads/pipeline";
-import { isHoneypotTripped, validateLead, type Lead } from "@/lib/leads/schema";
+import { DELIVERY_FAILED_MESSAGE, isHoneypotTripped, validateLead, type Lead } from "@/lib/leads/schema";
 import { defaultSinks } from "@/lib/leads/sinks";
 import {
   RATE_LIMIT_MAX,
@@ -80,12 +80,12 @@ export async function POST(req: Request) {
     ...validation.fields,
   };
 
+  // With a real sink switched on, the lead only counts once one of them has it.
+  // The log line alone does not keep the lead, so the visitor is asked to try again.
   const { accepted } = await runLeadPipeline(lead, { sinks: defaultSinks });
   if (!accepted) {
-    return NextResponse.json(
-      { error: "Something went wrong on our side. Please try again." },
-      { status: 500 }
-    );
+    console.error(`[leads] lead ${lead.id} was not delivered to any sink`);
+    return NextResponse.json({ error: DELIVERY_FAILED_MESSAGE }, { status: 502 });
   }
 
   return NextResponse.json({ success: true });

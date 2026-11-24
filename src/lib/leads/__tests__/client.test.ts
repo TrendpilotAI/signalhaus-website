@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { EMPTY_LEAD_FORM, LEADS_ENDPOINT, submitLead, type LeadFormValues } from "../client";
-import { sanitizeAttribution } from "../schema";
+import { DELIVERY_FAILED_MESSAGE, sanitizeAttribution } from "../schema";
 import { jsonResponse } from "./fixtures";
 
 const values: LeadFormValues = {
@@ -47,6 +47,13 @@ describe("submitLead", () => {
     if (result.ok) return;
     expect(result.message.length).toBeGreaterThan(10);
     expect(result.fieldErrors).toEqual({});
+  });
+
+  it.each([500, 502, 503])("asks the visitor to try again in a minute after a %i", async (status) => {
+    const fetchMock = vi.fn<typeof fetch>(async () => jsonResponse({ error: "anything" }, status));
+    const result = await submitLead(values, attribution, fetchMock);
+    expect(result).toEqual({ ok: false, message: DELIVERY_FAILED_MESSAGE, fieldErrors: {} });
+    expect(DELIVERY_FAILED_MESSAGE).toBe("Something went wrong on our end, please try again in a minute.");
   });
 
   it("handles a network failure and a non-JSON error body", async () => {
