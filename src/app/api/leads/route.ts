@@ -1,3 +1,4 @@
+import { Buffer } from "node:buffer";
 import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { runLeadPipeline } from "@/lib/leads/pipeline";
@@ -49,7 +50,7 @@ export async function POST(req: Request) {
   } catch {
     return NextResponse.json({ error: "Could not read the request body." }, { status: 400 });
   }
-  if (raw.length > MAX_BODY_BYTES) {
+  if (Buffer.byteLength(raw, "utf8") > MAX_BODY_BYTES) {
     return NextResponse.json({ error: "That message is too long." }, { status: 413 });
   }
 

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { validBody } from "@/lib/leads/__tests__/fixtures";
-import { DELIVERY_FAILED_MESSAGE } from "@/lib/leads/schema";
+import { DELIVERY_FAILED_MESSAGE, LEAD_LIMITS } from "@/lib/leads/schema";
 import { RATE_LIMIT_MAX, resetInMemoryRateLimit } from "@/lib/rate-limit";
 import { POST } from "../route";
 
@@ -406,6 +406,18 @@ describe("POST /api/leads", () => {
     it("returns 413 for an oversized body", async () => {
       const response = await post(validBody({ workingOn: "a".repeat(30_000) }));
       expect(response.status).toBe(413);
+    });
+
+    it("measures the body in bytes, so multi-byte text cannot slip past the limit", async () => {
+      // 12,000 characters, which is under the limit, but 36,000 bytes as UTF-8.
+      const response = await post(validBody({ workingOn: "\u20ac".repeat(12_000) }));
+      expect(response.status).toBe(413);
+      expect(loggedLeads(log)).toHaveLength(0);
+    });
+
+    it("still takes the longest message the form allows when every character is multi-byte", async () => {
+      const response = await post(validBody({ workingOn: "\u20ac".repeat(LEAD_LIMITS.workingOnMax) }));
+      expect(response.status).toBe(200);
     });
 
     it("accepts a submission with no attribution and fills in defaults", async () => {
