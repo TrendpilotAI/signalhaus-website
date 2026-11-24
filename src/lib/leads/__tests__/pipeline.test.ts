@@ -10,7 +10,11 @@ import {
 } from "../pipeline";
 import { defaultSinks, lightfieldSink, logSink, protonSink, resendSink, slackSink } from "../sinks";
 import {
+  DEFAULT_HOLDING_ACCOUNT,
+  EMAIL_NOT_VERIFIED,
   LIGHTFIELD_DEADLINE_MS,
+  holdingAccountName,
+  noteContent,
   opportunityDescription,
   opportunityName,
   stageFields,
@@ -355,16 +359,26 @@ describe("lightfield adapter gating", () => {
     { id: "opt_lost", label: "Lost", category: "COMPLETED" },
   ];
 
-  /** A stand-in for the Lightfield API that answers each list from the records it is given. */
-  function lightfieldFetch(existing: {
-    contacts?: object[];
-    accounts?: object[];
-    opportunities?: object[];
-    definitions?: object;
-  }) {
+  /**
+   * A stand-in for the Lightfield API. It answers each list from the records
+   * it is given and reads one account by ID. Like the real API it does not
+   * promise that a list only holds what the filter asked for.
+   */
+  function lightfieldFetch(
+    existing: {
+      contacts?: object[];
+      accounts?: Array<{ id: string }>;
+      opportunities?: object[];
+      definitions?: object;
+    },
+    /** A call that answers 500, written "POST /v1/accounts". */
+    failing?: string
+  ) {
     return vi.fn<typeof fetch>(async (input, init) => {
       const url = new URL(String(input));
       const method = init?.method ?? "GET";
+      if (failing === `${method} ${url.pathname}`) return jsonResponse({ error: "boom" }, 500);
+
       const resource = url.pathname.replace("/v1/", "");
       if (method === "POST") return jsonResponse({ id: `new_${resource}` });
       if (resource === "opportunities/definitions") {
@@ -374,6 +388,10 @@ describe("lightfield adapter gating", () => {
             fieldDefinitions: { $stage: { typeConfiguration: { options: STAGES } } },
           }
         );
+      }
+      if (resource.startsWith("accounts/")) {
+        const found = existing.accounts?.find((a) => a.id === resource.replace("accounts/", ""));
+        return found ? jsonResponse(found) : jsonResponse({ error: "not found" }, 404);
       }
       const data =
         (resource === "contacts"
@@ -402,12 +420,23 @@ describe("lightfield adapter gating", () => {
     return calls(fetchMock).map((c) => `${c.method} ${c.path}`);
   }
 
+  /** The body of the one create call made to a path. */
+  function created(fetchMock: FetchMock, path: string) {
+    const matches = calls(fetchMock).filter((c) => c.method === "POST" && c.path === path);
+    expect(matches).toHaveLength(1);
+    return matches[0].body;
+  }
+
   function contact(id: string, emails: string[], accountId?: string) {
     return {
       id,
       fields: { $email: { value: emails, valueType: "EMAIL" } },
       relationships: accountId ? { $account: { values: [accountId] } } : {},
     };
+  }
+
+  function account(id: string, name: string) {
+    return { id, fields: { $name: { value: name, valueType: "TEXT" } } };
   }
 
   function opportunity(id: string, name: string, stage: string | null) {
@@ -420,68 +449,102 @@ describe("lightfield adapter gating", () => {
     };
   }
 
+  const HOLDING = "Signalhaus web leads";
+  const holding = account("acc_hold", HOLDING);
+  const exampleLabs = account("acc_1", "Example Labs");
+  /** Already in Lightfield, in an account of her own. */
   const ada = contact("con_ada", ["ada@example.com"], "acc_1");
+  /** Already in Lightfield because the form put her in the holding account earlier. */
+  const adaInHolding = contact("con_ada", ["ada@example.com"], "acc_hold");
 
-  it("creates the account, contact, opportunity and note for a new lead", async () => {
-    const fetchMock = lightfieldFetch({});
-    const { result } = await run(enabled, fetchMock, [lightfieldSink]);
-    expect(statusOf(result.results, "lightfield")).toBe("delivered");
+  const NAME = "Signalhaus · Positioning · Example Labs";
+  const MARKED_NAME = `${NAME} (email not verified)`;
 
-    const made = calls(fetchMock);
-    expect(summary(fetchMock)).toEqual([
-      "GET /v1/contacts",
-      "GET /v1/accounts",
-      "POST /v1/accounts",
-      "POST /v1/contacts",
-      "POST /v1/opportunities",
-      "POST /v1/notes",
-    ]);
+  describe("a lead whose address is new to Lightfield", () => {
+    it("becomes a contact in the holding account, with an opportunity and a note", async () => {
+      const fetchMock = lightfieldFetch({ accounts: [holding] });
+      const { result } = await run(enabled, fetchMock, [lightfieldSink]);
+      expect(statusOf(result.results, "lightfield")).toBe("delivered");
+      expect(result.accepted).toBe(true);
 
-    for (const call of made) {
-      expect(call.headers.Authorization).toBe("Bearer lf_test");
-      expect(call.headers["Lightfield-Version"]).toBe("2026-03-01");
-    }
-    expect(made.filter((c) => c.method === "POST").map((c) => c.headers["Idempotency-Key"])).toEqual([
-      `lead-${makeLead().id}-account`,
-      `lead-${makeLead().id}-contact`,
-      `lead-${makeLead().id}-opportunity`,
-      `lead-${makeLead().id}-note`,
-    ]);
+      const made = calls(fetchMock);
+      expect(summary(fetchMock)).toEqual([
+        "GET /v1/contacts",
+        "GET /v1/accounts",
+        "POST /v1/contacts",
+        "POST /v1/opportunities",
+        "POST /v1/notes",
+      ]);
 
-    expect(made[0].query).toEqual({
-      "$email[contains]": "ada@example.com",
-      fields: "$email,$account",
-      limit: "25",
+      for (const call of made) {
+        expect(call.headers.Authorization).toBe("Bearer lf_test");
+        expect(call.headers["Lightfield-Version"]).toBe("2026-03-01");
+      }
+      expect(made.filter((c) => c.method === "POST").map((c) => c.headers["Idempotency-Key"])).toEqual([
+        `lead-${makeLead().id}-contact`,
+        `lead-${makeLead().id}-opportunity`,
+        `lead-${makeLead().id}-note`,
+      ]);
+
+      expect(made[0].query).toEqual({
+        "$email[contains]": "ada@example.com",
+        fields: "$email,$account",
+        limit: "25",
+      });
+      expect(made[2].body).toEqual({
+        fields: { $email: ["ada@example.com"], $name: { firstName: "Ada", lastName: "Example" } },
+        relationships: { $account: "acc_hold" },
+        skipEnrichment: true,
+      });
+      expect(made[3].body).toEqual({
+        fields: { $name: NAME, $stage: "opt_lead" },
+        relationships: { $account: "acc_hold" },
+      });
+      expect(made[4].body.relationships).toEqual({
+        $account: "acc_hold",
+        $contact: "new_contacts",
+        $opportunity: "new_opportunities",
+      });
+      expect(made[4].body.fields.$title).toBe(NAME);
+      expect(made[4].body.fields.$content).toContain("Working out which customer segment");
     });
-    expect(made[2].body).toEqual({ fields: { $name: "Example Labs" } });
-    expect(made[3].body).toEqual({
-      fields: { $email: ["ada@example.com"], $name: { firstName: "Ada", lastName: "Example" } },
-      relationships: { $account: "new_accounts" },
-      skipEnrichment: true,
+
+    it("is not marked as unverified anywhere", async () => {
+      const fetchMock = lightfieldFetch({ accounts: [holding] });
+      await run({ ...enabled, LIGHTFIELD_OPPORTUNITY_DESCRIPTION_FIELD: "description" }, fetchMock, [
+        lightfieldSink,
+      ]);
+      for (const call of calls(fetchMock)) {
+        expect(JSON.stringify(call.body ?? {}).toLowerCase()).not.toContain("not verified");
+      }
     });
-    expect(made[4].body).toEqual({
-      fields: { $name: "Signalhaus · Positioning · Example Labs", $stage: "opt_lead" },
-      relationships: { $account: "new_accounts" },
+
+    it("does not look for an opportunity to reuse, whatever is in the holding account", async () => {
+      const fetchMock = lightfieldFetch({
+        accounts: [holding],
+        opportunities: [opportunity("opp_someone_else", NAME, "opt_lead")],
+      });
+      await run(enabled, fetchMock, [lightfieldSink]);
+      expect(summary(fetchMock)).not.toContain("GET /v1/opportunities");
+      expect(created(fetchMock, "/v1/notes").relationships.$opportunity).toBe("new_opportunities");
     });
-    expect(made[5].body.relationships).toEqual({
-      $account: "new_accounts",
-      $contact: "new_contacts",
-      $opportunity: "new_opportunities",
-    });
-    expect(made[5].body.fields.$title).toBe("Signalhaus · Positioning · Example Labs");
-    expect(made[5].body.fields.$content).toContain("Working out which customer segment");
   });
 
-  describe("contact lookup", () => {
-    it("ignores a contact whose address only contains the submitted one", async () => {
-      const lead = makeLead({ email: "ann@acme.co", name: "Ann Lee", company: "Acme" });
-      const fetchMock = lightfieldFetch({
-        contacts: [
-          contact("con_joann", ["joann@acme.com"], "acc_joann"),
-          contact("con_ann_uk", ["ann@acme.co.uk"], "acc_uk"),
-        ],
+  describe("the holding account", () => {
+    it("is looked up by its exact name, oldest first", async () => {
+      const fetchMock = lightfieldFetch({ accounts: [holding] });
+      await run(enabled, fetchMock, [lightfieldSink]);
+      expect(calls(fetchMock)[1]).toMatchObject({
+        method: "GET",
+        path: "/v1/accounts",
+        query: { "$name[equal]": HOLDING, fields: "$name", sort: "$createdAt", limit: "25" },
       });
-      await run(enabled, fetchMock, [lightfieldSink], lead);
+    });
+
+    it("is created the first time it is needed, without enrichment", async () => {
+      const fetchMock = lightfieldFetch({});
+      const { result } = await run(enabled, fetchMock, [lightfieldSink]);
+      expect(statusOf(result.results, "lightfield")).toBe("delivered");
 
       expect(summary(fetchMock)).toEqual([
         "GET /v1/contacts",
@@ -492,9 +555,225 @@ describe("lightfield adapter gating", () => {
         "POST /v1/notes",
       ]);
       const made = calls(fetchMock);
-      expect(made[3].body.fields.$email).toEqual(["ann@acme.co"]);
-      expect(made[5].body.relationships).toEqual({
-        $account: "new_accounts",
+      expect(made[2].body).toEqual({ fields: { $name: HOLDING }, skipEnrichment: true });
+      expect(made[2].headers["Idempotency-Key"]).toBe(`lead-${makeLead().id}-account`);
+      expect(created(fetchMock, "/v1/contacts").relationships).toEqual({ $account: "new_accounts" });
+      expect(created(fetchMock, "/v1/opportunities").relationships).toEqual({ $account: "new_accounts" });
+      expect(created(fetchMock, "/v1/notes").relationships.$account).toBe("new_accounts");
+    });
+
+    it("is not created again once it exists", async () => {
+      const fetchMock = lightfieldFetch({ accounts: [holding] });
+      await run(enabled, fetchMock, [lightfieldSink]);
+      expect(summary(fetchMock)).not.toContain("POST /v1/accounts");
+    });
+
+    it("is used whatever company the visitor typed, even one that has an account", async () => {
+      const fetchMock = lightfieldFetch({ accounts: [exampleLabs, holding] });
+      await run(enabled, fetchMock, [lightfieldSink], makeLead({ company: "Example Labs" }));
+      expect(summary(fetchMock)).not.toContain("POST /v1/accounts");
+      expect(created(fetchMock, "/v1/contacts").relationships).toEqual({ $account: "acc_hold" });
+    });
+
+    it("never gives the visitor's company an account of its own", async () => {
+      const fetchMock = lightfieldFetch({});
+      await run(enabled, fetchMock, [lightfieldSink], makeLead({ company: "Brand New Co" }));
+      expect(created(fetchMock, "/v1/accounts").fields).toEqual({ $name: HOLDING });
+    });
+
+    it.each([
+      ["a different case", "signalhaus web leads"],
+      ["a longer name", "Signalhaus web leads (old)"],
+      ["no name at all", undefined],
+    ])("is not mistaken for an account with %s", async (_case, name) => {
+      const lookalike = name === undefined ? { id: "acc_other" } : account("acc_other", name);
+      const fetchMock = lightfieldFetch({ accounts: [lookalike] });
+      await run(enabled, fetchMock, [lightfieldSink]);
+      expect(created(fetchMock, "/v1/accounts").fields).toEqual({ $name: HOLDING });
+      expect(created(fetchMock, "/v1/contacts").relationships).toEqual({ $account: "new_accounts" });
+    });
+
+    it("is the first one returned when two accounts share the name", async () => {
+      const fetchMock = lightfieldFetch({ accounts: [account("acc_first", HOLDING), account("acc_second", HOLDING)] });
+      await run(enabled, fetchMock, [lightfieldSink]);
+      expect(created(fetchMock, "/v1/contacts").relationships).toEqual({ $account: "acc_first" });
+    });
+
+    it("takes its name from LIGHTFIELD_HOLDING_ACCOUNT when that is set", async () => {
+      const fetchMock = lightfieldFetch({ accounts: [holding] });
+      await run({ ...enabled, LIGHTFIELD_HOLDING_ACCOUNT: " Inbound from the site " }, fetchMock, [lightfieldSink]);
+      expect(calls(fetchMock)[1].query["$name[equal]"]).toBe("Inbound from the site");
+      expect(created(fetchMock, "/v1/accounts").fields).toEqual({ $name: "Inbound from the site" });
+    });
+
+    it("falls back to the default name when the variable is unset or blank", () => {
+      expect(DEFAULT_HOLDING_ACCOUNT).toBe("Signalhaus web leads");
+      expect(holdingAccountName({})).toBe(HOLDING);
+      expect(holdingAccountName({ LIGHTFIELD_HOLDING_ACCOUNT: "" })).toBe(HOLDING);
+      expect(holdingAccountName({ LIGHTFIELD_HOLDING_ACCOUNT: "   " })).toBe(HOLDING);
+    });
+
+    it("does not make the sink misconfigured when the variable is unset", () => {
+      expect(lightfieldSink.readiness(enabled)).toEqual({ state: "ready" });
+    });
+  });
+
+  describe("a lead that matches an existing contact by email alone", () => {
+    it("is marked in the opportunity name and the note when the contact sits in the holding account", async () => {
+      const fetchMock = lightfieldFetch({ contacts: [adaInHolding], accounts: [holding] });
+      const { result } = await run(enabled, fetchMock, [lightfieldSink]);
+      expect(statusOf(result.results, "lightfield")).toBe("delivered");
+
+      expect(summary(fetchMock)).toEqual([
+        "GET /v1/contacts",
+        "GET /v1/accounts/acc_hold",
+        "POST /v1/opportunities",
+        "POST /v1/notes",
+      ]);
+      expect(created(fetchMock, "/v1/opportunities")).toEqual({
+        fields: { $name: MARKED_NAME, $stage: "opt_lead" },
+        relationships: { $account: "acc_hold" },
+      });
+      const note = created(fetchMock, "/v1/notes");
+      expect(note.fields.$title).toBe(MARKED_NAME);
+      expect(note.fields.$content).toMatch(/^\*\*Email not verified\.\*\* /);
+      expect(note.fields.$content).toContain("Working out which customer segment");
+      expect(note.relationships).toEqual({
+        $account: "acc_hold",
+        $contact: "con_ada",
+        $opportunity: "new_opportunities",
+      });
+    });
+
+    it("is marked when the contact sits in an account of their own", async () => {
+      const fetchMock = lightfieldFetch({ contacts: [ada], accounts: [exampleLabs, holding] });
+      await run(enabled, fetchMock, [lightfieldSink]);
+
+      expect(summary(fetchMock)).toEqual([
+        "GET /v1/contacts",
+        "GET /v1/accounts/acc_1",
+        "GET /v1/opportunities",
+        "POST /v1/opportunities",
+        "POST /v1/notes",
+      ]);
+      expect(created(fetchMock, "/v1/opportunities")).toEqual({
+        fields: { $name: MARKED_NAME, $stage: "opt_lead" },
+        relationships: { $account: "acc_1" },
+      });
+      const note = created(fetchMock, "/v1/notes");
+      expect(note.fields.$title).toBe(MARKED_NAME);
+      expect(note.fields.$content).toMatch(/^\*\*Email not verified\.\*\* /);
+      expect(note.relationships).toEqual({
+        $account: "acc_1",
+        $contact: "con_ada",
+        $opportunity: "new_opportunities",
+      });
+    });
+
+    it("is marked, and filed in the holding account, when the contact has no account", async () => {
+      const fetchMock = lightfieldFetch({ contacts: [contact("con_ada", ["ada@example.com"])], accounts: [holding] });
+      await run(enabled, fetchMock, [lightfieldSink]);
+
+      expect(summary(fetchMock)).toEqual([
+        "GET /v1/contacts",
+        "GET /v1/accounts",
+        "POST /v1/opportunities",
+        "POST /v1/notes",
+      ]);
+      expect(created(fetchMock, "/v1/opportunities")).toEqual({
+        fields: { $name: MARKED_NAME, $stage: "opt_lead" },
+        relationships: { $account: "acc_hold" },
+      });
+      expect(created(fetchMock, "/v1/notes").relationships).toEqual({
+        $account: "acc_hold",
+        $contact: "con_ada",
+        $opportunity: "new_opportunities",
+      });
+    });
+
+    it.each([
+      ["in the holding account", { contacts: [adaInHolding], accounts: [holding] }],
+      ["in an account of their own", { contacts: [ada], accounts: [exampleLabs, holding] }],
+      ["with no account", { contacts: [contact("con_ada", ["ada@example.com"])], accounts: [holding] }],
+      [
+        "with an open opportunity to reuse",
+        { contacts: [ada], accounts: [exampleLabs], opportunities: [opportunity("opp_open", MARKED_NAME, "opt_lead")] },
+      ],
+    ])("never writes to the existing contact (%s)", async (_case, existing) => {
+      const fetchMock = lightfieldFetch(existing);
+      await run(enabled, fetchMock, [lightfieldSink], makeLead({ name: "Somebody Else", company: "Another Co" }));
+      const writes = calls(fetchMock).filter((c) => c.method === "POST");
+      expect(writes.length).toBeGreaterThan(0);
+      for (const write of writes) {
+        expect(write.path).not.toMatch(/^\/v1\/contacts/);
+        expect(write.path).not.toMatch(/^\/v1\/accounts/);
+      }
+    });
+
+    it("says so at the top of the description field when one is configured", async () => {
+      const fetchMock = lightfieldFetch({ contacts: [adaInHolding], accounts: [holding] });
+      await run({ ...enabled, LIGHTFIELD_OPPORTUNITY_DESCRIPTION_FIELD: "description" }, fetchMock, [
+        lightfieldSink,
+      ]);
+      const description = created(fetchMock, "/v1/opportunities").fields.description;
+      expect(description).toBe(opportunityDescription(makeLead(), true));
+      expect(description).toMatch(/^Email not verified\. /);
+    });
+
+    it("adds the label to the end of the name, and only when asked", () => {
+      expect(EMAIL_NOT_VERIFIED).toBe("email not verified");
+      expect(opportunityName(makeLead(), true)).toBe(MARKED_NAME);
+      expect(opportunityName(makeLead({ company: "" }), true)).toBe(
+        "Signalhaus · Positioning · Ada Example (email not verified)"
+      );
+      expect(opportunityName(makeLead(), false)).toBe(NAME);
+      expect(noteContent(makeLead(), false)).not.toContain("not verified");
+      expect(noteContent(makeLead())).toBe(noteContent(makeLead(), false));
+      expect(noteContent(makeLead(), true)).toContain(noteContent(makeLead(), false));
+    });
+
+    it("reads the contact's account by ID, so a list that lags cannot hide the holding account", async () => {
+      // The list would say the holding account does not exist yet.
+      const fetchMock = vi.fn<typeof fetch>(async (input, init) => {
+        const url = new URL(String(input));
+        if ((init?.method ?? "GET") === "POST") return jsonResponse({ id: "new" });
+        if (url.pathname === "/v1/contacts") return jsonResponse({ data: [adaInHolding] });
+        if (url.pathname === "/v1/accounts/acc_hold") return jsonResponse(holding);
+        return jsonResponse({ data: [opportunity("opp_someone_else", NAME, "opt_lead")] });
+      });
+      await run(enabled, fetchMock, [lightfieldSink]);
+      expect(summary(fetchMock)).toEqual([
+        "GET /v1/contacts",
+        "GET /v1/accounts/acc_hold",
+        "POST /v1/opportunities",
+        "POST /v1/notes",
+      ]);
+    });
+  });
+
+  describe("contact lookup", () => {
+    it("ignores a contact whose address only contains the submitted one", async () => {
+      const lead = makeLead({ email: "ann@acme.co", name: "Ann Lee", company: "Acme" });
+      const fetchMock = lightfieldFetch({
+        contacts: [
+          contact("con_joann", ["joann@acme.com"], "acc_joann"),
+          contact("con_ann_uk", ["ann@acme.co.uk"], "acc_uk"),
+        ],
+        accounts: [holding],
+      });
+      await run(enabled, fetchMock, [lightfieldSink], lead);
+
+      expect(summary(fetchMock)).toEqual([
+        "GET /v1/contacts",
+        "GET /v1/accounts",
+        "POST /v1/contacts",
+        "POST /v1/opportunities",
+        "POST /v1/notes",
+      ]);
+      expect(created(fetchMock, "/v1/contacts").fields.$email).toEqual(["ann@acme.co"]);
+      expect(created(fetchMock, "/v1/opportunities").fields.$name).toBe("Signalhaus · Positioning · Acme");
+      expect(created(fetchMock, "/v1/notes").relationships).toEqual({
+        $account: "acc_hold",
         $contact: "new_contacts",
         $opportunity: "new_opportunities",
       });
@@ -507,32 +786,36 @@ describe("lightfield adapter gating", () => {
           contact("con_joann", ["joann@acme.com"], "acc_joann"),
           contact("con_ann", ["other@acme.co", "ann@acme.co"], "acc_ann"),
         ],
+        accounts: [account("acc_ann", "Acme")],
       });
       await run(enabled, fetchMock, [lightfieldSink], lead);
 
-      const note = calls(fetchMock).at(-1);
-      expect(note?.body.relationships.$contact).toBe("con_ann");
-      expect(note?.body.relationships.$account).toBe("acc_ann");
+      const note = created(fetchMock, "/v1/notes");
+      expect(note.relationships.$contact).toBe("con_ann");
+      expect(note.relationships.$account).toBe("acc_ann");
     });
 
     it("matches the address whatever its case", async () => {
-      const fetchMock = lightfieldFetch({ contacts: [contact("con_ada", [" Ada@Example.COM "], "acc_1")] });
+      const fetchMock = lightfieldFetch({
+        contacts: [contact("con_ada", [" Ada@Example.COM "], "acc_1")],
+        accounts: [exampleLabs],
+      });
       await run(enabled, fetchMock, [lightfieldSink]);
       expect(summary(fetchMock)).not.toContain("POST /v1/contacts");
-      expect(calls(fetchMock).at(-1)?.body.relationships.$contact).toBe("con_ada");
+      expect(created(fetchMock, "/v1/notes").relationships.$contact).toBe("con_ada");
     });
 
     it("reads an email field that holds a single string", async () => {
       const single = { id: "con_one", fields: { $email: { value: "ada@example.com" } } };
-      const fetchMock = lightfieldFetch({ contacts: [single] });
+      const fetchMock = lightfieldFetch({ contacts: [single], accounts: [holding] });
       await run(enabled, fetchMock, [lightfieldSink]);
-      expect(calls(fetchMock).at(-1)?.body.relationships.$contact).toBe("con_one");
+      expect(created(fetchMock, "/v1/notes").relationships.$contact).toBe("con_one");
     });
   });
 
   describe("opportunity", () => {
     it("names it after the topic and the company, or the person when there is no company", () => {
-      expect(opportunityName(makeLead())).toBe("Signalhaus · Positioning · Example Labs");
+      expect(opportunityName(makeLead())).toBe(NAME);
       expect(opportunityName(makeLead({ company: "", topic: "due-diligence" }))).toBe(
         "Signalhaus · Due diligence · Ada Example"
       );
@@ -565,10 +848,10 @@ describe("lightfield adapter gating", () => {
     });
 
     it("sets the stage and the pipeline when both are configured", async () => {
-      const fetchMock = lightfieldFetch({});
+      const fetchMock = lightfieldFetch({ accounts: [holding] });
       await run({ ...enabled, LIGHTFIELD_PIPELINE_OPTION: "pd_signalhaus" }, fetchMock, [lightfieldSink]);
-      expect(calls(fetchMock)[4].body.fields).toEqual({
-        $name: "Signalhaus · Positioning · Example Labs",
+      expect(created(fetchMock, "/v1/opportunities").fields).toEqual({
+        $name: NAME,
         $pipeline: "pd_signalhaus",
         $stage: "opt_lead",
       });
@@ -587,22 +870,23 @@ describe("lightfield adapter gating", () => {
     });
 
     it("writes the description to the configured field only", async () => {
-      const without = lightfieldFetch({});
+      const without = lightfieldFetch({ accounts: [holding] });
       await run(enabled, without, [lightfieldSink]);
-      expect(Object.keys(calls(without)[4].body.fields)).toEqual(["$name", "$stage"]);
+      expect(Object.keys(created(without, "/v1/opportunities").fields)).toEqual(["$name", "$stage"]);
 
-      const withField = lightfieldFetch({});
+      const withField = lightfieldFetch({ accounts: [holding] });
       await run({ ...enabled, LIGHTFIELD_OPPORTUNITY_DESCRIPTION_FIELD: "description" }, withField, [
         lightfieldSink,
       ]);
-      expect(calls(withField)[4].body.fields.description).toBe(opportunityDescription(makeLead()));
+      expect(created(withField, "/v1/opportunities").fields.description).toBe(opportunityDescription(makeLead()));
     });
   });
 
-  describe("reusing an open opportunity", () => {
-    it("adds a note to the contact's open Signalhaus opportunity and creates nothing else", async () => {
+  describe("reusing an open opportunity on the contact's own account", () => {
+    it("adds a marked note to the open Signalhaus opportunity and creates nothing else", async () => {
       const fetchMock = lightfieldFetch({
         contacts: [ada],
+        accounts: [exampleLabs],
         opportunities: [opportunity("opp_open", "Signalhaus · Prioritization · Example Labs", "opt_lead")],
       });
       const { result } = await run(enabled, fetchMock, [lightfieldSink]);
@@ -610,114 +894,276 @@ describe("lightfield adapter gating", () => {
 
       expect(summary(fetchMock)).toEqual([
         "GET /v1/contacts",
+        "GET /v1/accounts/acc_1",
         "GET /v1/opportunities",
         "GET /v1/opportunities/definitions",
         "POST /v1/notes",
       ]);
       const made = calls(fetchMock);
-      expect(made[1].query).toEqual({
+      expect(made[2].query).toEqual({
         $account: "acc_1",
         "$name[startsWith]": "Signalhaus ·",
         fields: "$name,$stage",
         limit: "25",
       });
-      expect(made[3].body.relationships).toEqual({
+      expect(made[4].body.relationships).toEqual({
         $account: "acc_1",
         $contact: "con_ada",
         $opportunity: "opp_open",
       });
-      expect(made[3].headers["Idempotency-Key"]).toBe(`lead-${makeLead().id}-note`);
+      expect(made[4].body.fields.$title).toBe(MARKED_NAME);
+      expect(made[4].body.fields.$content).toMatch(/^\*\*Email not verified\.\*\* /);
+      expect(made[4].headers["Idempotency-Key"]).toBe(`lead-${makeLead().id}-note`);
+    });
+
+    it("reuses an opportunity that already carries the label", async () => {
+      const fetchMock = lightfieldFetch({
+        contacts: [ada],
+        accounts: [exampleLabs],
+        opportunities: [opportunity("opp_marked", MARKED_NAME, "opt_lead")],
+      });
+      await run(enabled, fetchMock, [lightfieldSink]);
+      expect(summary(fetchMock)).not.toContain("POST /v1/opportunities");
+      expect(created(fetchMock, "/v1/notes").relationships.$opportunity).toBe("opp_marked");
+    });
+
+    it("reuses nothing in the holding account, where the opportunities belong to other people", async () => {
+      const fetchMock = lightfieldFetch({
+        contacts: [adaInHolding],
+        accounts: [holding],
+        opportunities: [opportunity("opp_someone_else", NAME, "opt_lead")],
+      });
+      await run(enabled, fetchMock, [lightfieldSink]);
+      expect(summary(fetchMock)).not.toContain("GET /v1/opportunities");
+      expect(created(fetchMock, "/v1/notes").relationships.$opportunity).toBe("new_opportunities");
+    });
+
+    it("treats a custom holding account the same way", async () => {
+      const fetchMock = lightfieldFetch({
+        contacts: [contact("con_ada", ["ada@example.com"], "acc_inbound")],
+        accounts: [account("acc_inbound", "Inbound from the site")],
+        opportunities: [opportunity("opp_someone_else", NAME, "opt_lead")],
+      });
+      await run({ ...enabled, LIGHTFIELD_HOLDING_ACCOUNT: "Inbound from the site" }, fetchMock, [lightfieldSink]);
+      expect(summary(fetchMock)).not.toContain("GET /v1/opportunities");
+      expect(created(fetchMock, "/v1/opportunities").relationships).toEqual({ $account: "acc_inbound" });
     });
 
     it("reuses an opportunity that has no stage without reading the definitions", async () => {
       const fetchMock = lightfieldFetch({
         contacts: [ada],
-        opportunities: [opportunity("opp_unstaged", "Signalhaus · Positioning · Example Labs", null)],
+        accounts: [exampleLabs],
+        opportunities: [opportunity("opp_unstaged", NAME, null)],
       });
       await run(enabled, fetchMock, [lightfieldSink]);
-      expect(summary(fetchMock)).toEqual(["GET /v1/contacts", "GET /v1/opportunities", "POST /v1/notes"]);
-      expect(calls(fetchMock)[2].body.relationships.$opportunity).toBe("opp_unstaged");
+      expect(summary(fetchMock)).toEqual([
+        "GET /v1/contacts",
+        "GET /v1/accounts/acc_1",
+        "GET /v1/opportunities",
+        "POST /v1/notes",
+      ]);
+      expect(created(fetchMock, "/v1/notes").relationships.$opportunity).toBe("opp_unstaged");
     });
 
     it("skips won and lost opportunities and takes the newest open one", async () => {
       const fetchMock = lightfieldFetch({
         contacts: [ada],
+        accounts: [exampleLabs],
         opportunities: [
-          opportunity("opp_lost", "Signalhaus · Positioning · Example Labs", "opt_lost"),
-          opportunity("opp_open", "Signalhaus · Positioning · Example Labs", "opt_lead"),
+          opportunity("opp_lost", NAME, "opt_lost"),
+          opportunity("opp_open", NAME, "opt_lead"),
           opportunity("opp_older", "Signalhaus · Due diligence · Example Labs", "opt_lead"),
         ],
       });
       await run(enabled, fetchMock, [lightfieldSink]);
-      expect(calls(fetchMock).at(-1)?.body.relationships.$opportunity).toBe("opp_open");
+      expect(created(fetchMock, "/v1/notes").relationships.$opportunity).toBe("opp_open");
     });
 
-    it("creates a new opportunity when every Signalhaus one is closed", async () => {
+    it("creates a new, marked opportunity when every Signalhaus one is closed", async () => {
       const fetchMock = lightfieldFetch({
         contacts: [ada],
-        opportunities: [
-          opportunity("opp_won", "Signalhaus · Positioning · Example Labs", "opt_won"),
-          opportunity("opp_lost", "Signalhaus · Positioning · Example Labs", "opt_lost"),
-        ],
+        accounts: [exampleLabs],
+        opportunities: [opportunity("opp_won", NAME, "opt_won"), opportunity("opp_lost", NAME, "opt_lost")],
       });
       await run(enabled, fetchMock, [lightfieldSink]);
       expect(summary(fetchMock)).toEqual([
         "GET /v1/contacts",
+        "GET /v1/accounts/acc_1",
         "GET /v1/opportunities",
         "GET /v1/opportunities/definitions",
         "POST /v1/opportunities",
         "POST /v1/notes",
       ]);
-      expect(calls(fetchMock).at(-1)?.body.relationships.$opportunity).toBe("new_opportunities");
+      expect(created(fetchMock, "/v1/opportunities").fields.$name).toBe(MARKED_NAME);
+      expect(created(fetchMock, "/v1/notes").relationships.$opportunity).toBe("new_opportunities");
     });
 
     it("reads stage options from a response wrapped in a data envelope", async () => {
       const fetchMock = lightfieldFetch({
         contacts: [ada],
-        opportunities: [opportunity("opp_won", "Signalhaus · Positioning · Example Labs", "opt_won")],
+        accounts: [exampleLabs],
+        opportunities: [opportunity("opp_won", NAME, "opt_won")],
         definitions: { data: { fieldDefinitions: { $stage: { typeConfiguration: { options: STAGES } } } } },
       });
       await run(enabled, fetchMock, [lightfieldSink]);
-      expect(calls(fetchMock).at(-1)?.body.relationships.$opportunity).toBe("new_opportunities");
+      expect(created(fetchMock, "/v1/notes").relationships.$opportunity).toBe("new_opportunities");
     });
 
     it("creates a new opportunity, rather than guess, when Lightfield returns no stage options", async () => {
       const fetchMock = lightfieldFetch({
         contacts: [ada],
-        opportunities: [opportunity("opp_won", "Signalhaus · Positioning · Example Labs", "opt_won")],
+        accounts: [exampleLabs],
+        opportunities: [opportunity("opp_won", NAME, "opt_won")],
         definitions: { objectType: "opportunity" },
       });
       const { result, logger } = await run(enabled, fetchMock, [lightfieldSink]);
       expect(statusOf(result.results, "lightfield")).toBe("delivered");
       expect(logger.warn).toHaveBeenCalledTimes(1);
-      expect(calls(fetchMock).at(-1)?.body.relationships.$opportunity).toBe("new_opportunities");
+      expect(created(fetchMock, "/v1/notes").relationships.$opportunity).toBe("new_opportunities");
     });
 
     it("ignores an opportunity without the Signalhaus prefix, even if Lightfield returns it", async () => {
       const fetchMock = lightfieldFetch({
         contacts: [ada],
+        accounts: [exampleLabs],
         opportunities: [
           opportunity("opp_other", "Data licence renewal", "opt_lead"),
           opportunity("opp_lookalike", "Signalhaus retainer", "opt_lead"),
         ],
       });
       await run(enabled, fetchMock, [lightfieldSink]);
-      expect(summary(fetchMock)).toEqual(["GET /v1/contacts", "GET /v1/opportunities", "POST /v1/opportunities", "POST /v1/notes"]);
-    });
-
-    it("does not look for an opportunity when the contact is new", async () => {
-      const fetchMock = lightfieldFetch({
-        accounts: [{ id: "acc_1" }],
-        opportunities: [opportunity("opp_colleague", "Signalhaus · Positioning · Example Labs", "opt_lead")],
-      });
-      await run(enabled, fetchMock, [lightfieldSink]);
       expect(summary(fetchMock)).toEqual([
         "GET /v1/contacts",
-        "GET /v1/accounts",
-        "POST /v1/contacts",
+        "GET /v1/accounts/acc_1",
+        "GET /v1/opportunities",
         "POST /v1/opportunities",
         "POST /v1/notes",
       ]);
+    });
+  });
+
+  describe("when a Lightfield call fails", () => {
+    const paths: Array<[string, Parameters<typeof lightfieldFetch>[0], string, string[]]> = [
+      ["the contact lookup", {}, "GET /v1/contacts", []],
+      ["the holding account lookup", {}, "GET /v1/accounts", []],
+      ["creating the holding account", {}, "POST /v1/accounts", []],
+      ["creating the contact", { accounts: [holding] }, "POST /v1/contacts", []],
+      ["creating the opportunity", { accounts: [holding] }, "POST /v1/opportunities", ["POST /v1/contacts"]],
+      [
+        "saving the note",
+        { accounts: [holding] },
+        "POST /v1/notes",
+        ["POST /v1/contacts", "POST /v1/opportunities"],
+      ],
+      [
+        "reading a matched contact's account",
+        { contacts: [ada], accounts: [exampleLabs] },
+        "GET /v1/accounts/acc_1",
+        [],
+      ],
+      [
+        "looking for an opportunity to reuse",
+        { contacts: [ada], accounts: [exampleLabs] },
+        "GET /v1/opportunities",
+        [],
+      ],
+      [
+        "reading the stage options",
+        { contacts: [ada], accounts: [exampleLabs], opportunities: [opportunity("opp_open", NAME, "opt_lead")] },
+        "GET /v1/opportunities/definitions",
+        [],
+      ],
+      [
+        "creating a matched contact's opportunity",
+        { contacts: [adaInHolding], accounts: [holding] },
+        "POST /v1/opportunities",
+        [],
+      ],
+      ["saving a matched contact's note", { contacts: [adaInHolding], accounts: [holding] }, "POST /v1/notes", ["POST /v1/opportunities"]],
+    ];
+
+    it.each(paths)(
+      "fails the lead at %s, stops there, and does not count as a record",
+      async (_step, existing, failing, writesBefore) => {
+        const fetchMock = lightfieldFetch(existing, failing);
+        const { result } = await run(enabled, fetchMock, [logSink, lightfieldSink]);
+
+        expect(result.results.find((r) => r.sink === "lightfield")).toEqual({
+          sink: "lightfield",
+          status: "failed",
+          error: `Lightfield ${failing} responded with 500`,
+        });
+        expect(result.accepted).toBe(false);
+        expect(result.rejection).toBe("no-record-sink-accepted");
+
+        const made = summary(fetchMock);
+        expect(made.at(-1)).toBe(failing);
+        expect(made.filter((call) => call.startsWith("POST") && call !== failing)).toEqual(writesBefore);
+      }
+    );
+
+    it("fails when a matched contact's account can no longer be read", async () => {
+      const fetchMock = lightfieldFetch({ contacts: [ada], accounts: [] });
+      const { result } = await run(enabled, fetchMock, [lightfieldSink]);
+      expect(result.results[0]).toEqual({
+        sink: "lightfield",
+        status: "failed",
+        error: "Lightfield GET /v1/accounts/acc_1 responded with 404",
+      });
+      expect(summary(fetchMock).filter((call) => call.startsWith("POST"))).toEqual([]);
+    });
+
+    it("fails when a create answers without an ID, rather than file the lead under nothing", async () => {
+      const fetchMock = vi.fn<typeof fetch>(async (_input, init) =>
+        (init?.method ?? "GET") === "POST" ? jsonResponse({}) : jsonResponse({ data: [] })
+      );
+      const { result } = await run(enabled, fetchMock, [lightfieldSink]);
+      expect(result.results[0]).toEqual({
+        sink: "lightfield",
+        status: "failed",
+        error: "Lightfield POST /v1/accounts returned no ID",
+      });
+      expect(summary(fetchMock)).toEqual(["GET /v1/contacts", "GET /v1/accounts", "POST /v1/accounts"]);
+      expect(result.accepted).toBe(false);
+    });
+
+    it("fails when Lightfield cannot be reached", async () => {
+      const fetchMock = vi.fn<typeof fetch>(async () => {
+        throw new TypeError("fetch failed");
+      });
+      const { result } = await run(enabled, fetchMock, [lightfieldSink]);
+      expect(statusOf(result.results, "lightfield")).toBe("failed");
+      expect(result.accepted).toBe(false);
+    });
+
+    it("is still accepted when another record sink takes the lead", async () => {
+      const fetchMock = vi.fn<typeof fetch>(async (input) =>
+        String(input).includes("api.resend.com") ? jsonResponse({ id: "email_1" }) : jsonResponse({ error: "boom" }, 500)
+      );
+      const { result } = await run(
+        { ...enabled, LEAD_RESEND_ENABLED: "true", RESEND_API_KEY: "re_test", LEAD_NOTIFY_TO: "nathan@example.com" },
+        fetchMock,
+        [resendSink, lightfieldSink]
+      );
+      expect(statusOf(result.results, "resend")).toBe("delivered");
+      expect(statusOf(result.results, "lightfield")).toBe("failed");
+      expect(result.accepted).toBe(true);
+    });
+
+    it("keeps the key, the address and the message out of the error and the log", async () => {
+      for (const [, existing, failing] of paths) {
+        const { result, logger } = await run(enabled, lightfieldFetch(existing, failing), [lightfieldSink]);
+        const logged = JSON.stringify([
+          result.results,
+          logger.error.mock.calls,
+          logger.warn.mock.calls,
+          logger.info.mock.calls,
+        ]);
+        expect(logged).toContain("Lightfield");
+        for (const secret of ["lf_test", "Bearer", "ada@example.com", "Ada Example", "Example Labs", "customer segment"]) {
+          expect(logged).not.toContain(secret);
+        }
+      }
     });
   });
 

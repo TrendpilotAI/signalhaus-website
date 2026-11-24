@@ -95,10 +95,16 @@ When a submission is not accepted, the route answers 502 and the form shows "Som
 
 ### Lightfield
 
-The Lightfield sink finds the contact by exact email (ignoring case), finds or creates the account, and creates an opportunity named `Signalhaus · <topic> · <company or name>`. If the contact was already in Lightfield and their account has an open opportunity with the `Signalhaus · ` prefix, the lead is added to that one as a note and no second opportunity is made. Existing records are never edited.
+The Lightfield sink looks the contact up by exact email (ignoring case) and then goes one of two ways.
+
+- **The email is new.** The lead becomes a new contact in one holding account, named `Signalhaus web leads` unless `LIGHTFIELD_HOLDING_ACCOUNT` says otherwise. The account is found by its exact name and is made the first time a lead needs it. The form never makes an account for the company a visitor typed in. The lead gets an opportunity named `Signalhaus · <topic> · <company or name>` and a note with what they wrote.
+- **The email matches an existing contact.** The form does not check who owns an address, so the lead is marked `(email not verified)` at the end of the opportunity name and at the top of the note. It is filed under the existing contact, on that contact's account, and the contact is never written to. If the contact sits in an account of their own with an open `Signalhaus · ` opportunity, the note goes on that one and no second opportunity is made. In the holding account the opportunities belong to many different people, so nothing is reused there and the lead gets a new opportunity.
+
+Existing records are never edited. It is worth making the holding account by hand before switching Lightfield on. Lists in Lightfield can lag a moment behind a new record, so two first leads that arrive together could each make one.
 
 | Variable | What it does |
 |---|---|
+| `LIGHTFIELD_HOLDING_ACCOUNT` | Optional. Name of the holding account for new contacts. Defaults to `Signalhaus web leads` |
 | `LIGHTFIELD_STAGE_LEAD` | Stage for a new opportunity. Use the option id of the Lead stage in the Signalhaus pipeline, which picks the stage and the pipeline together. A label works too, but alone it is looked up in the default pipeline. Required: with Lightfield switched on and this empty, the sink counts as failed |
 | `LIGHTFIELD_PIPELINE_OPTION` | Optional. Pipeline for a new opportunity: its id or name. Only needed when `LIGHTFIELD_STAGE_LEAD` is a label |
 | `LIGHTFIELD_OPPORTUNITY_DESCRIPTION_FIELD` | Key of the opportunity field that gets the description (source, page, post slug, topic, UTM, message). Opportunities have no such field until one is added in Lightfield. The note carries the same details either way |

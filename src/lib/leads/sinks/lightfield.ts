@@ -25,6 +25,16 @@ const PAGE_SIZE = "25";
 /** Every opportunity this site creates starts with this, so they can be found again. */
 export const OPPORTUNITY_PREFIX = "Signalhaus · ";
 
+/** The one account every contact made by the form goes into, unless the env names another. */
+export const DEFAULT_HOLDING_ACCOUNT = "Signalhaus web leads";
+
+/**
+ * Added to the opportunity name and the note when a lead's address matches a
+ * contact who was already in Lightfield. The form does not check that the
+ * sender owns the address, so the match rests on the email alone.
+ */
+export const EMAIL_NOT_VERIFIED = "email not verified";
+
 interface LightfieldRecord {
   id: string;
   fields?: Record<string, { value?: unknown } | undefined>;
@@ -51,20 +61,29 @@ function splitName(fullName: string): { firstName: string; lastName?: string } {
   return rest.length > 0 ? { firstName, lastName: rest.join(" ") } : { firstName };
 }
 
-export function accountName(lead: Lead): string {
-  return lead.company || `${lead.name} (no company given)`;
+export function holdingAccountName(env: LeadEnv): string {
+  return env.LIGHTFIELD_HOLDING_ACCOUNT?.trim() || DEFAULT_HOLDING_ACCOUNT;
 }
 
-/** "Signalhaus · Positioning · Example Labs", or the person's name when no company was given. */
-export function opportunityName(lead: Lead): string {
-  return `${OPPORTUNITY_PREFIX}${topicLabel(lead.topic)} · ${lead.company || lead.name}`;
+/**
+ * "Signalhaus · Positioning · Example Labs", or the person's name when no
+ * company was given. A lead matched to an existing contact by email alone
+ * gets " (email not verified)" on the end.
+ */
+export function opportunityName(lead: Lead, emailNotVerified = false): string {
+  const name = `${OPPORTUNITY_PREFIX}${topicLabel(lead.topic)} · ${lead.company || lead.name}`;
+  return emailNotVerified ? `${name} (${EMAIL_NOT_VERIFIED})` : name;
 }
 
-export function opportunityDescription(lead: Lead): string {
+const NOT_VERIFIED_EXPLAINED =
+  "This address matched a contact who was already in Lightfield. The website form does not check that the sender owns the address.";
+
+export function opportunityDescription(lead: Lead, emailNotVerified = false): string {
   const { attribution } = lead;
   const utm = UTM_KEYS.flatMap((key) => (attribution.utm[key] ? [`${key}=${attribution.utm[key]}`] : []));
 
   return [
+    ...(emailNotVerified ? [`Email not verified. ${NOT_VERIFIED_EXPLAINED}`, ""] : []),
     `Topic: ${topicLabel(lead.topic)}`,
     `Source: ${attribution.leadSource}`,
     `Page: ${attribution.pagePath}`,
@@ -76,8 +95,9 @@ export function opportunityDescription(lead: Lead): string {
   ].join("\n");
 }
 
-export function noteContent(lead: Lead): string {
+export function noteContent(lead: Lead, emailNotVerified = false): string {
   return [
+    ...(emailNotVerified ? [`**Email not verified.** ${NOT_VERIFIED_EXPLAINED}`, ""] : []),
     "**What they're working on**",
     "",
     lead.workingOn,
@@ -101,12 +121,12 @@ export function stageFields(env: LeadEnv): Record<string, string> {
   return pipeline ? { $pipeline: pipeline, $stage: stage } : { $stage: stage };
 }
 
-function opportunityFields(lead: Lead, ctx: SinkContext): Record<string, string> {
+function opportunityFields(lead: Lead, ctx: SinkContext, emailNotVerified: boolean): Record<string, string> {
   const descriptionField = ctx.env.LIGHTFIELD_OPPORTUNITY_DESCRIPTION_FIELD?.trim();
   return {
-    $name: opportunityName(lead),
+    $name: opportunityName(lead, emailNotVerified),
     ...stageFields(ctx.env),
-    ...(descriptionField ? { [descriptionField]: opportunityDescription(lead) } : {}),
+    ...(descriptionField ? { [descriptionField]: opportunityDescription(lead, emailNotVerified) } : {}),
   };
 }
 
@@ -165,8 +185,13 @@ class LightfieldClient {
     return this.request<T>("GET", path);
   }
 
-  create(path: string, body: unknown, idempotencyKey: string): Promise<LightfieldRecord> {
-    return this.request<LightfieldRecord>("POST", path, { body, idempotencyKey });
+  async create(path: string, body: unknown, idempotencyKey: string): Promise<LightfieldRecord> {
+    const record = await this.request<LightfieldRecord>("POST", path, { body, idempotencyKey });
+    // The next record hangs off this ID, so a reply without one is a failure.
+    if (typeof record?.id !== "string" || !record.id) {
+      throw new Error(`Lightfield POST ${path} returned no ID`);
+    }
+    return record;
   }
 }
 
@@ -194,9 +219,48 @@ async function findContactByEmail(
   return candidates.find((contact) => emailsOf(contact).includes(wanted)) ?? null;
 }
 
-async function findAccountByName(client: LightfieldClient, name: string): Promise<LightfieldRecord | null> {
-  const [account] = await client.list("/v1/accounts", { "$name[equal]": name, limit: "1" });
-  return account ?? null;
+function nameOf(account: LightfieldRecord): string | null {
+  const value = account.fields?.$name?.value;
+  return typeof value === "string" ? value.trim() : null;
+}
+
+/**
+ * The holding account, found by its exact name. Lightfield does the filtering,
+ * and the name is checked again here, so a filter it reads differently can
+ * never file web leads under some other account. Oldest first, so that if
+ * there are ever two with the name, every lead goes to the same one.
+ */
+async function findHoldingAccount(client: LightfieldClient, name: string): Promise<LightfieldRecord | null> {
+  const candidates = await client.list("/v1/accounts", {
+    "$name[equal]": name,
+    fields: "$name",
+    sort: "$createdAt",
+    limit: PAGE_SIZE,
+  });
+  return candidates.find((account) => nameOf(account) === name) ?? null;
+}
+
+async function findOrCreateHoldingAccount(client: LightfieldClient, name: string, lead: Lead): Promise<string> {
+  const existing = await findHoldingAccount(client, name);
+  if (existing) return existing.id;
+
+  const created = await client.create(
+    "/v1/accounts",
+    // The holding account is not a company, so there is nothing for enrichment to look up.
+    { fields: { $name: name }, skipEnrichment: true },
+    `lead-${lead.id}-account`
+  );
+  return created.id;
+}
+
+/**
+ * Whether an account a contact already sits in is the holding account. The
+ * account is read by ID, not looked up in a list, because a list can lag
+ * behind an account that was made a moment ago.
+ */
+async function isHoldingAccount(client: LightfieldClient, accountId: string, name: string): Promise<boolean> {
+  const account = await client.get<LightfieldRecord>(`/v1/accounts/${encodeURIComponent(accountId)}`);
+  return nameOf(account) === name;
 }
 
 /** The stages Lightfield classes as won or lost, or null when it does not say. */
@@ -257,12 +321,24 @@ async function findOpenSignalhausOpportunity(
  * them. Lightfield has no upsert endpoint, so this follows its documented
  * find-or-create pattern and sends an Idempotency-Key with every create.
  *
+ * A lead whose address is not in Lightfield becomes a new contact in one
+ * holding account ("Signalhaus web leads", or LIGHTFIELD_HOLDING_ACCOUNT),
+ * which is found by name and made the first time it is needed. The form never
+ * makes an account for the company a visitor typed in.
+ *
+ * A lead whose address matches an existing contact is filed under that
+ * contact, and is marked "email not verified" in the opportunity name and the
+ * note, because the match rests on a typed address alone. The contact itself
+ * is never written to.
+ *
  * A new opportunity is named "Signalhaus · <topic> · <company or name>" and
  * starts in the stage named by LIGHTFIELD_STAGE_LEAD, in the pipeline named by
- * LIGHTFIELD_PIPELINE_OPTION when that is set. A contact who is already in Lightfield and
- * already has an open Signalhaus opportunity keeps that one. Opportunities
- * hang off accounts in Lightfield, not contacts, so "already has" means one
- * on the contact's account.
+ * LIGHTFIELD_PIPELINE_OPTION when that is set. Opportunities hang off
+ * accounts in Lightfield, not contacts. So a matched contact who sits in an
+ * account of their own, with an open Signalhaus opportunity on it, keeps that
+ * one and gets the note there. In the holding account the opportunities
+ * belong to many different people, so nothing is reused and a matched contact
+ * there gets a new opportunity.
  *
  * Existing records are never modified. The lead's own words are attached as a
  * note, so nothing already in the CRM is overwritten by a web form.
@@ -285,18 +361,17 @@ export const lightfieldSink: LeadSink = {
     try {
       const client = new LightfieldClient(ctx, deadline.signal);
 
-      const existingContact = await findContactByEmail(client, lead.email);
+      const holdingName = holdingAccountName(ctx.env);
 
-      const accountId =
-        existingContact?.relationships?.$account?.values?.[0] ??
-        (await findAccountByName(client, accountName(lead)))?.id ??
-        (
-          await client.create(
-            "/v1/accounts",
-            { fields: { $name: accountName(lead) } },
-            `lead-${lead.id}-account`
-          )
-        ).id;
+      const existingContact = await findContactByEmail(client, lead.email);
+      // Anyone can type any address into the form, so a match proves nothing about who sent it.
+      const emailNotVerified = existingContact !== null;
+
+      const ownAccountId = existingContact?.relationships?.$account?.values?.[0];
+      const inOwnAccount =
+        ownAccountId !== undefined && !(await isHoldingAccount(client, ownAccountId, holdingName));
+
+      const accountId = ownAccountId ?? (await findOrCreateHoldingAccount(client, holdingName, lead));
 
       const contactId =
         existingContact?.id ??
@@ -313,8 +388,8 @@ export const lightfieldSink: LeadSink = {
           )
         ).id;
 
-      // A contact created a moment ago cannot have an opportunity yet.
-      const openOpportunity = existingContact
+      // Only an account of the contact's own can hold an opportunity that is theirs to reuse.
+      const openOpportunity = inOwnAccount
         ? await findOpenSignalhausOpportunity(client, accountId, ctx.logger)
         : null;
 
@@ -323,7 +398,10 @@ export const lightfieldSink: LeadSink = {
         (
           await client.create(
             "/v1/opportunities",
-            { fields: opportunityFields(lead, ctx), relationships: { $account: accountId } },
+            {
+              fields: opportunityFields(lead, ctx, emailNotVerified),
+              relationships: { $account: accountId },
+            },
             `lead-${lead.id}-opportunity`
           )
         ).id;
@@ -331,7 +409,10 @@ export const lightfieldSink: LeadSink = {
       await client.create(
         "/v1/notes",
         {
-          fields: { $title: opportunityName(lead), $content: noteContent(lead) },
+          fields: {
+            $title: opportunityName(lead, emailNotVerified),
+            $content: noteContent(lead, emailNotVerified),
+          },
           relationships: { $account: accountId, $contact: contactId, $opportunity: opportunityId },
         },
         `lead-${lead.id}-note`
