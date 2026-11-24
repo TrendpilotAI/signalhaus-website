@@ -1,125 +1,49 @@
-import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
-import Header from "@/components/Header";
+import { dmMono, hanken, newsreader } from "./fonts";
+import AttributionTracker from "@/components/AttributionTracker";
 import Footer from "@/components/Footer";
 import GoogleAnalytics from "@/components/GoogleAnalytics";
-import MicrosoftClarity from "@/components/MicrosoftClarity";
-import LinkedInInsight from "@/components/LinkedInInsight";
+import Header from "@/components/Header";
 import JsonLd from "@/components/JsonLd";
+import LinkedInInsight from "@/components/LinkedInInsight";
+import MicrosoftClarity from "@/components/MicrosoftClarity";
+import { organizationJsonLd, websiteJsonLd } from "@/lib/jsonld";
+import { alternatesFor, shareMetadataFor } from "@/lib/metadata";
+import { SITE, SITE_URL } from "@/lib/site";
 
-const organizationSchema = {
-  "@context": "https://schema.org",
-  "@type": "Organization",
-  "@id": "https://www.signalhaus.ai/#organization",
-  name: "SignalHaus",
-  alternateName: "SignalHaus AI",
-  url: "https://www.signalhaus.ai",
-  logo: {
-    "@type": "ImageObject",
-    url: "https://www.signalhaus.ai/logo.png",
-    width: 200,
-    height: 60,
-  },
-  description:
-    "SignalHaus builds custom AI automations, data integrations, and intelligent agents for growth-stage B2B companies. Founded by Nathan Stevenson.",
-  founder: {
-    "@type": "Person",
-    name: "Nathan Stevenson",
-    jobTitle: "Founder & CEO",
-    url: "https://www.signalhaus.ai/about",
-  },
-  foundingDate: "2023",
-  areaServed: { "@type": "Country", name: "United States" },
-  address: {
-    "@type": "PostalAddress",
-    addressLocality: "Fort Lauderdale",
-    addressRegion: "FL",
-    addressCountry: "US",
-  },
-  contactPoint: {
-    "@type": "ContactPoint",
-    contactType: "sales",
-    email: "hello@signalhaus.ai",
-    url: "https://www.signalhaus.ai/contact",
-  },
-  sameAs: [
-    "https://www.linkedin.com/company/signalhaus",
-  ],
-  award: [
-    "AI Hot 100",
-    "WealthTech 100",
-    "AI Fintech 100",
-    "KPMG Top 50 Fintechs",
-    "World Economic Forum Technology Pioneer",
-  ],
-};
-
-const websiteSchema = {
-  "@context": "https://schema.org",
-  "@type": "WebSite",
-  "@id": "https://www.signalhaus.ai/#website",
-  url: "https://www.signalhaus.ai",
-  name: "SignalHaus",
-  publisher: { "@id": "https://www.signalhaus.ai/#organization" },
-  potentialAction: {
-    "@type": "SearchAction",
-    target: "https://www.signalhaus.ai/blog?q={search_term_string}",
-    "query-input": "required name=search_term_string",
-  },
-};
-
-const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
+const DEFAULT_TITLE = `${SITE.name} - ${SITE.tagline}`;
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://www.signalhaus.ai"),
+  metadataBase: new URL(SITE_URL),
   title: {
-    default: "SignalHaus — AI Automation for B2B Revenue Teams",
-    template: "%s | SignalHaus",
+    default: DEFAULT_TITLE,
+    template: `%s | ${SITE.name}`,
   },
-  description:
-    "SignalHaus builds custom AI automations, data integrations, and intelligent agents for growth-stage B2B companies. Ship AI that drives revenue — in 30 days, not 6 months.",
-  openGraph: {
-    type: "website",
-    locale: "en_US",
-    url: "https://www.signalhaus.ai",
-    siteName: "SignalHaus",
-<<<<<<< HEAD
-    title: "SignalHaus — AI Automation & Data Integration for B2B Revenue Teams",
-    description:
-      "SignalHaus builds custom AI automations, data integrations, and intelligent agents for growth-stage B2B companies.",
-    images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "SignalHaus — AI Automation for B2B Revenue Teams" }],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "SignalHaus — AI Automation for B2B Revenue Teams",
-    description:
-      "Custom AI automations, data integrations, and intelligent agents for growth-stage B2B companies.",
-    images: ["/og-image.png"],
-  },
+  description: SITE.description,
+  applicationName: SITE.name,
+  authors: [{ name: SITE.founder.name, url: `${SITE_URL}/about` }],
+  ...shareMetadataFor({ title: DEFAULT_TITLE, description: SITE.description, path: "/" }),
   robots: { index: true, follow: true },
-  alternates: { canonical: "https://www.signalhaus.ai" },
+  alternates: alternatesFor("/"),
+};
+
+export const viewport: Viewport = {
+  themeColor: "#F5EFE3",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={inter.variable}>
-      <head>
-        <JsonLd data={organizationSchema} />
-        <JsonLd data={websiteSchema} />
-        <link
-          rel="alternate"
-          type="application/rss+xml"
-          title="SignalHaus Blog RSS Feed"
-          href="https://www.signalhaus.ai/feed.xml"
-        />
-      </head>
-      <body className="bg-gray-950 text-gray-100 font-sans antialiased">
-        <GoogleAnalytics gaId={process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || ''} />
-        <MicrosoftClarity projectId={process.env.NEXT_PUBLIC_CLARITY_PROJECT_ID || ''} />
-        <LinkedInInsight partnerId={process.env.NEXT_PUBLIC_LINKEDIN_PARTNER_ID || ''} />
+    <html lang="en" className={`${newsreader.variable} ${hanken.variable} ${dmMono.variable}`}>
+      <body className="antialiased">
+        <JsonLd data={[organizationJsonLd(), websiteJsonLd()]} />
+        {/* Each analytics tag renders nothing unless its env var is set. */}
+        <GoogleAnalytics gaId={process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID || ""} />
+        <MicrosoftClarity projectId={process.env.NEXT_PUBLIC_CLARITY_PROJECT_ID || ""} />
+        <LinkedInInsight partnerId={process.env.NEXT_PUBLIC_LINKEDIN_PARTNER_ID || ""} />
+        <AttributionTracker />
         <Header />
-        <main className="min-h-screen">{children}</main>
+        <main id="main">{children}</main>
         <Footer />
       </body>
     </html>

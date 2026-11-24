@@ -1,10 +1,10 @@
-import { getAllPostsMeta, formatDate } from "@/lib/mdx";
-import { NextResponse } from "next/server";
+import { getAllPostsMeta } from "@/lib/mdx";
+import { SITE, absoluteUrl } from "@/lib/site";
 
-const SITE_URL = "https://www.signalhaus.ai";
+export const dynamic = "force-static";
 
-function escapeXml(str: string): string {
-  return str
+function escapeXml(value: string): string {
+  return value
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
@@ -12,47 +12,46 @@ function escapeXml(str: string): string {
     .replace(/'/g, "&apos;");
 }
 
-export async function GET() {
+export function GET() {
   const posts = getAllPostsMeta();
+  const newest = posts[0] ? new Date(posts[0].updated ?? posts[0].date) : new Date();
 
   const items = posts
     .map((post) => {
-      const url = `${SITE_URL}/blog/${post.slug}`;
-      const pubDate = new Date(post.date).toUTCString();
-      const categories = post.tags
-        .map((t) => `<category>${escapeXml(t)}</category>`)
-        .join("\n        ");
-
-      return `
-    <item>
-      <title>${escapeXml(post.title)}</title>
-      <link>${url}</link>
-      <guid isPermaLink="true">${url}</guid>
-      <description>${escapeXml(post.excerpt)}</description>
-      <pubDate>${pubDate}</pubDate>
-      <author>hello@signalhaus.ai (${escapeXml(post.author)})</author>
-        ${categories}
-    </item>`;
+      const url = absoluteUrl(`/blog/${post.slug}`);
+      const categories = post.tags.map((tag) => `      <category>${escapeXml(tag)}</category>`);
+      return [
+        "    <item>",
+        `      <title>${escapeXml(post.title)}</title>`,
+        `      <link>${url}</link>`,
+        `      <guid isPermaLink="true">${url}</guid>`,
+        `      <description>${escapeXml(post.excerpt)}</description>`,
+        `      <pubDate>${new Date(post.date).toUTCString()}</pubDate>`,
+        `      <dc:creator>${escapeXml(post.author)}</dc:creator>`,
+        ...categories,
+        "    </item>",
+      ].join("\n");
     })
     .join("\n");
 
   const rss = `<?xml version="1.0" encoding="UTF-8"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:dc="http://purl.org/dc/elements/1.1/">
   <channel>
-    <title>SignalHaus Blog</title>
-    <link>${SITE_URL}/blog</link>
-    <description>Practical insights on AI strategy, automation, and data from operators who've shipped at scale.</description>
+    <title>${escapeXml(`${SITE.name} guides`)}</title>
+    <link>${absoluteUrl("/blog")}</link>
+    <description>${escapeXml("Plain how-to guides for founders on investor due diligence, positioning, priorities and data-driven decisions.")}</description>
     <language>en-US</language>
-    <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>
-    <atom:link href="${SITE_URL}/feed.xml" rel="self" type="application/rss+xml"/>
-    ${items}
+    <lastBuildDate>${newest.toUTCString()}</lastBuildDate>
+    <atom:link href="${absoluteUrl("/feed.xml")}" rel="self" type="application/rss+xml"/>
+${items}
   </channel>
-</rss>`;
+</rss>
+`;
 
-  return new NextResponse(rss, {
+  return new Response(rss, {
     headers: {
       "Content-Type": "application/rss+xml; charset=utf-8",
-      "Cache-Control": "s-maxage=3600, stale-while-revalidate",
+      "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400",
     },
   });
 }

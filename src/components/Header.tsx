@@ -1,60 +1,104 @@
 "use client";
-import Link from "next/link";
-import { useState } from "react";
 
-const nav = [
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useState, useSyncExternalStore } from "react";
+import { IconClose, IconMenu, LogoMark } from "@/components/icons";
+import { PRIMARY_CTA, SITE } from "@/lib/site";
+
+const NAV = [
   { label: "Services", href: "/services" },
-  { label: "Case Studies", href: "/case-studies" },
-  { label: "Pricing", href: "/pricing" },
+  { label: "Guides", href: "/blog" },
   { label: "About", href: "/about" },
-  { label: "ROI Calculator", href: "/roi-calculator" },
-  { label: "Blog", href: "/blog" },
-  { label: "Contact", href: "/contact" },
 ];
 
+function isCurrent(pathname: string, href: string): boolean {
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+function subscribeToScroll(onChange: () => void): () => void {
+  window.addEventListener("scroll", onChange, { passive: true });
+  return () => window.removeEventListener("scroll", onChange);
+}
+
+const hasScrolled = () => window.scrollY > 4;
+const hasScrolledOnServer = () => false;
+
 export default function Header() {
+  const pathname = usePathname() ?? "/";
   const [open, setOpen] = useState(false);
+  const scrolled = useSyncExternalStore(subscribeToScroll, hasScrolled, hasScrolledOnServer);
+
   return (
-    <header className="fixed top-0 inset-x-0 z-50 bg-gray-950/80 backdrop-blur-md border-b border-gray-800">
-      <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-        <Link href="/" className="text-xl font-bold tracking-tight">
-          Signal<span className="text-indigo-400">Haus</span>
+    <header
+      className={`sticky top-0 z-40 border-b bg-paper ${scrolled || open ? "border-navy/15" : "border-transparent"}`}
+    >
+      <a
+        href="#main"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-2 focus:z-50 focus:bg-light focus:px-4 focus:py-2"
+      >
+        Skip to the content
+      </a>
+      <div className="page flex h-16 items-center justify-between gap-6">
+        <Link href="/" className="link-quiet flex items-center gap-3" aria-label={`${SITE.name} home`}>
+          <span className="icon-tile">
+            <LogoMark />
+          </span>
+          <span className="font-serif text-[1.6rem] leading-none tracking-[-0.02em] text-navy">
+            {SITE.name}
+          </span>
         </Link>
-        <nav className="hidden md:flex gap-8">
-          {nav.map((n) => (
-            <Link key={n.href} href={n.href} className="text-sm text-gray-300 hover:text-white transition">
-              {n.label}
+
+        <nav aria-label="Main" className="hidden items-center gap-8 lg:flex">
+          {NAV.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              aria-current={isCurrent(pathname, item.href) ? "page" : undefined}
+              className="link-quiet body-sm font-medium text-navy aria-[current=page]:underline aria-[current=page]:decoration-accent aria-[current=page]:decoration-2 aria-[current=page]:underline-offset-8"
+            >
+              {item.label}
             </Link>
           ))}
-        </nav>
-        <Link
-          href="/contact"
-          className="hidden md:inline-flex px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-sm font-medium transition"
-        >
-          Book a Call
-        </Link>
-        <button onClick={() => setOpen(!open)} className="md:hidden p-2" aria-label="Toggle menu">
-          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            {open ? (
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            ) : (
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-            )}
-          </svg>
-        </button>
-      </div>
-      {open && (
-        <nav className="md:hidden border-t border-gray-800 bg-gray-950 px-6 py-4 flex flex-col gap-4">
-          {nav.map((n) => (
-            <Link key={n.href} href={n.href} onClick={() => setOpen(false)} className="text-gray-300 hover:text-white min-h-[44px] flex items-center">
-              {n.label}
-            </Link>
-          ))}
-          <Link href="/contact" onClick={() => setOpen(false)} className="px-4 py-3 bg-indigo-600 rounded-lg text-center text-sm font-medium min-h-[44px] flex items-center justify-center">
-            Book a Call
+          <Link href={PRIMARY_CTA.href} className="btn btn-primary btn-compact">
+            {PRIMARY_CTA.label}
           </Link>
         </nav>
-      )}
+
+        <button
+          type="button"
+          onClick={() => setOpen((value) => !value)}
+          aria-expanded={open}
+          aria-controls="mobile-nav"
+          aria-label={open ? "Close the menu" : "Open the menu"}
+          className="-mr-3 flex h-12 w-12 items-center justify-center text-navy lg:hidden"
+        >
+          {open ? <IconClose /> : <IconMenu />}
+        </button>
+      </div>
+
+      {open ? (
+        <nav
+          id="mobile-nav"
+          aria-label="Main"
+          className="page flex max-h-[calc(100dvh-64px)] flex-col gap-2 overflow-y-auto pb-6 lg:hidden"
+        >
+          {NAV.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              onClick={() => setOpen(false)}
+              aria-current={isCurrent(pathname, item.href) ? "page" : undefined}
+              className="link-quiet flex min-h-12 items-center text-lg font-medium text-navy"
+            >
+              {item.label}
+            </Link>
+          ))}
+          <Link href={PRIMARY_CTA.href} onClick={() => setOpen(false)} className="btn btn-primary mt-2">
+            {PRIMARY_CTA.label}
+          </Link>
+        </nav>
+      ) : null}
     </header>
   );
 }

@@ -1,198 +1,132 @@
-# SignalHaus.ai — Website
+# Signalhaus website
 
-Production-ready marketing website for [SignalHaus AI consultancy](https://www.signalhaus.ai).  
-Built with Next.js 16 App Router, Tailwind CSS v4, and TypeScript.
+The marketing site for Signalhaus LLC, Nathan Stevenson's Services-as-Software consulting firm. It is an AI growth advisory for founders.
 
----
+Built with Next.js 16 (App Router), TypeScript, Tailwind CSS v4 and an MDX blog.
 
-## Tech Stack
-
-| Layer | Technology |
-|---|---|
-| Framework | Next.js 16 (App Router, TypeScript) |
-| Styling | Tailwind CSS v4 |
-| Font | Inter (Google Fonts) |
-| Email | Resend API |
-| Rate limiting | Upstash Redis (sliding window) |
-| Analytics | Google Analytics 4, Microsoft Clarity, LinkedIn Insight |
-| Content | MDX (blog posts via `content/blog/`) |
-| Testing | Vitest |
-
----
-
-## Local Development
+## Local development
 
 ```bash
-# 1. Install dependencies
 pnpm install
-
-# 2. Set up environment variables
-cp .env.example .env.local
-# Edit .env.local with your values (see Environment Variables section)
-
-# 3. Start dev server
-pnpm dev
-# → http://localhost:3000
-
-# 4. Run tests
-pnpm test
+cp .env.example .env.local   # every value is optional for local work
+pnpm dev                     # http://localhost:3000
 ```
 
----
+| Command | What it does |
+|---|---|
+| `pnpm dev` | Start the dev server |
+| `pnpm build` | Production build |
+| `pnpm start` | Serve the production build |
+| `pnpm test` | Run the Vitest suite |
+| `pnpm lint` | ESLint with the Next.js config |
+| `pnpm typecheck` | `tsc --noEmit` |
 
-## Deploying to Vercel
-
-### One-click deploy
-
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/TrendpilotAI/signalhaus-website)
-
-### Manual deploy
-
-1. **Push to GitHub** (already done if you're reading this in the repo)
-
-2. **Import in Vercel**
-   - Go to [vercel.com/new](https://vercel.com/new)
-   - Click "Import Git Repository" → select `TrendpilotAI/signalhaus-website`
-   - Framework preset: **Next.js** (auto-detected)
-   - Root directory: `.` (default)
-
-3. **Set Environment Variables** (Vercel Dashboard → Project → Settings → Environment Variables)
-
-   | Variable | Required | Description |
-   |---|---|---|
-   | `RESEND_API_KEY` | ✅ Yes | Resend API key for contact form emails |
-   | `CONTACT_EMAIL` | ✅ Yes | Destination email for form submissions |
-   | `UPSTASH_REDIS_REST_URL` | ✅ Recommended | Upstash Redis URL for rate limiting |
-   | `UPSTASH_REDIS_REST_TOKEN` | ✅ Recommended | Upstash Redis token |
-   | `NEXT_PUBLIC_GA_MEASUREMENT_ID` | Optional | Google Analytics 4 measurement ID |
-   | `NEXT_PUBLIC_CLARITY_PROJECT_ID` | Optional | Microsoft Clarity project ID |
-   | `NEXT_PUBLIC_LINKEDIN_PARTNER_ID` | Optional | LinkedIn Insight Tag partner ID |
-   | `SLACK_WEBHOOK_URL` | Optional | Slack webhook for lead notifications |
-
-4. **Click Deploy** — Vercel will build and deploy automatically.
-
-5. **Set up custom domain**
-   - Vercel Dashboard → Project → Settings → Domains
-   - Add `signalhaus.ai` and `www.signalhaus.ai`
-   - Update DNS records as instructed by Vercel
-
-> **Note on Upstash Redis:** Vercel is serverless — each request may hit a different function instance. Without Upstash Redis, the in-memory rate limiter doesn't persist across instances, meaning rate limits won't work correctly in production. Get a free Upstash database at [console.upstash.com](https://console.upstash.com).
-
----
-
-## Environment Variables
-
-See `.env.example` for the full list with descriptions.
-
-### Getting your credentials
-
-- **Resend API key:** [resend.com/api-keys](https://resend.com/api-keys) — verify `signalhaus.ai` as a sending domain
-- **Upstash Redis:** [console.upstash.com](https://console.upstash.com) — create a database, copy REST URL + token
-- **Google Analytics:** [analytics.google.com](https://analytics.google.com) — create a GA4 property
-- **Microsoft Clarity:** [clarity.microsoft.com](https://clarity.microsoft.com) — create a project
-- **LinkedIn Insight:** LinkedIn Campaign Manager → Account Assets → Insight Tag
-
----
+The project uses pnpm. `vercel.json` and CI both install with pnpm.
 
 ## Pages
 
-| Route | Description |
+| Route | What it is |
 |---|---|
-| `/` | Homepage — hero, services, social proof, pricing preview, CTA |
-| `/services` | Service cards with deliverables |
-| `/pricing` | 3-tier pricing (QuickStart, Growth, Enterprise) |
-| `/about` | Nathan's bio, company timeline, values |
-| `/contact` | Contact form (powered by Resend) |
-| `/blog` | Blog listing + MDX-powered posts |
-| `/blog/[slug]` | Individual blog posts from `content/blog/` |
-| `/case-studies` | Client case studies |
-| `/roi-calculator` | Interactive ROI calculator |
-| `/sitemap.xml` | Auto-generated sitemap |
-| `/feed.xml` | RSS feed for blog |
-| `/_not-found` | Branded 404 page |
+| `/` | Landing page with the Services-as-Software positioning and a lead form |
+| `/services` | What the work covers, the weekly rhythm and three ways to work together |
+| `/about` | Who Signalhaus is |
+| `/blog` | The how-to guides |
+| `/blog/[slug]` | One guide, with Article and FAQPage JSON-LD and a lead form |
+| `/contact` | The lead form on its own |
+| `/api/leads` | The server route behind every lead form |
+| `/sitemap.xml`, `/robots.txt`, `/feed.xml` | Generated SEO files |
 
----
+`/pricing`, `/case-studies`, `/roi-calculator` and the five older blog posts were taken down. They redirect with a temporary (307) redirect set in `next.config.ts`. The reasons are in `content/research/removed-claims.md`.
 
-## SEO Features
+## Content
 
-- ✅ Unique `<title>` and `<meta description>` per page
-- ✅ Open Graph tags (`og:image`, `og:title`, `og:description`) on every page
-- ✅ Twitter Card (`summary_large_image`) on every page
-- ✅ JSON-LD structured data (Organization + WebSite schemas)
-- ✅ Canonical URLs
-- ✅ Auto-generated sitemap at `/sitemap.xml`
-- ✅ RSS feed at `/feed.xml`
-- ✅ `robots.txt`
-- ✅ Security headers (CSP, HSTS, X-Frame-Options, etc.)
+| Path | What it holds |
+|---|---|
+| `content/blog/*.mdx` | Published guides |
+| `content/archive/blog/` | Older posts kept for reference. Nothing here is published |
+| `content/research/toolkit-copy.md` | Copy angles from the Data-Driven Decision-Making Toolkit |
+| `content/research/removed-claims.md` | Every claim and page removed in the rebuild, and why |
 
----
+### Writing a guide
 
-## Content Management
-
-### Blog posts
-
-Blog posts live in `content/blog/` as MDX files:
-
-```
-content/
-  blog/
-    my-post-slug/
-      index.mdx
-```
-
-Each post requires frontmatter:
+Add `content/blog/<slug>.mdx` with this frontmatter:
 
 ```mdx
 ---
-title: "Post Title"
-date: "2025-03-11"
-excerpt: "Short description shown in listing."
+title: "How to do the thing"
+excerpt: "One or two plain sentences, 170 characters at most."
+date: "2026-11-23"
+topic: "positioning"   # due-diligence | positioning | prioritization | data-driven-decisions | other
+order: 1               # optional, orders posts that share a date
+tags: ["Positioning"]
 author: "Nathan Stevenson"
-tags: ["AI", "Enterprise"]
 ---
-
-Your content here...
 ```
 
-### OG Image
+Rules the tests in `src/lib/__tests__/posts.test.ts` enforce:
 
-Replace `public/og-image.png` with a 1200×630px image for social sharing.
+- Every H2 is a question that starts with How, What, When, Why, Who or Which.
+- The first paragraph under each H2 answers it directly in one or two sentences. That pair becomes a FAQPage entry.
+- Each post links to the other posts, to the landing page and to the toolkit.
+- No em dashes, en dashes or semicolons in the prose.
 
-### Logo
+## Lead capture
 
-Replace `public/logo.png` with your brand logo (referenced in JSON-LD schema).
+Every form posts to `/api/leads`. The route rate-limits by IP (5 requests per 15 minutes), drops honeypot submissions, validates the fields, then hands the lead to a list of sinks in `src/lib/leads/sinks/`.
 
----
+| Sink | Kind | Switched on by | Also needs |
+|---|---|---|---|
+| Log | Stub | Always on. Writes one line with a masked email, the topic, the source form and the post slug | |
+| Resend email | Record | `LEAD_RESEND_ENABLED` exactly `true` | `RESEND_API_KEY`, `LEAD_NOTIFY_TO` |
+| Proton inbox copy | Record | `LEAD_RESEND_ENABLED` exactly `true` and `LEAD_PROTON_INBOX` set | `RESEND_API_KEY` |
+| Lightfield | Record | `LEAD_LIGHTFIELD_ENABLED` exactly `true` | `LIGHTFIELD_API_KEY`, `LIGHTFIELD_STAGE_LEAD` |
+| Slack | Notify | `LEAD_SLACK_ENABLED` exactly `true` | `SLACK_WEBHOOK_URL` |
 
-## Security
+A key on its own never turns a sink on.
 
-The site ships with production-ready security headers configured in `next.config.ts`:
+The pipeline fails closed, in every environment:
 
-- **Content Security Policy** — strict allowlist
-- **HSTS** — 2-year max-age with preload
-- **X-Frame-Options** — SAMEORIGIN
-- **X-Content-Type-Options** — nosniff
-- **Referrer-Policy** — strict-origin-when-cross-origin
+- `/api/leads` answers with success only when at least one record sink took the lead.
+- Slack only notifies, so a Slack message on its own does not count. Neither does the log line, which never holds the name, the message or the full email (`j***@acme.com`, not the address).
+- With no record sink switched on, every submission gets an error. That includes local development and Preview, so set up Resend or Lightfield before testing the form end to end.
+- A sink that is switched on without the variables in the last column counts as failed, not skipped. The log says which variables are missing, and nothing about the lead.
 
-### Rate Limiting
+When a submission is not accepted, the route answers 502 and the form shows "Something went wrong on our end, please try again in a minute", with everything the visitor typed still in place. All sinks share one 9 second deadline, and their requests are aborted when it passes.
 
-The `/api/contact` endpoint is rate-limited to **5 requests per IP per 15 minutes** using Upstash Redis sliding window. Falls back to per-process in-memory limiting when Redis is not configured (local dev only).
+### Lightfield
 
----
+The Lightfield sink looks the contact up by exact email (ignoring case) and then goes one of two ways.
 
-## Development
+- **The email is new.** The lead becomes a new contact in one holding account, named `Signalhaus web leads` unless `LIGHTFIELD_HOLDING_ACCOUNT` says otherwise. The account is found by its exact name and is made the first time a lead needs it. The form never makes an account for the company a visitor typed in. The lead gets an opportunity named `Signalhaus · <topic> · <company or name>` and a note with what they wrote.
+- **The email matches an existing contact.** The form does not check who owns an address, so the lead is marked `(email not verified)` at the end of the opportunity name and at the top of the note. It is filed under the existing contact, on that contact's account, and the contact is never written to. If the contact sits in an account of their own with an open `Signalhaus · ` opportunity, the note goes on that one and no second opportunity is made. In the holding account the opportunities belong to many different people, so nothing is reused there and the lead gets a new opportunity.
 
-```bash
-pnpm dev          # Start dev server (http://localhost:3000)
-pnpm build        # Production build
-pnpm start        # Serve production build
-pnpm test         # Run Vitest tests
-pnpm test:watch   # Watch mode
-pnpm test:coverage # Coverage report
-```
+Existing records are never edited. It is worth making the holding account by hand before switching Lightfield on. Lists in Lightfield can lag a moment behind a new record, so two first leads that arrive together could each make one.
 
----
+| Variable | What it does |
+|---|---|
+| `LIGHTFIELD_HOLDING_ACCOUNT` | Optional. Name of the holding account for new contacts. Defaults to `Signalhaus web leads` |
+| `LIGHTFIELD_STAGE_LEAD` | Stage for a new opportunity. Use the option id of the Lead stage in the Signalhaus pipeline, which picks the stage and the pipeline together. A label works too, but alone it is looked up in the default pipeline. Required: with Lightfield switched on and this empty, the sink counts as failed |
+| `LIGHTFIELD_PIPELINE_OPTION` | Optional. Pipeline for a new opportunity: its id or name. Only needed when `LIGHTFIELD_STAGE_LEAD` is a label |
+| `LIGHTFIELD_OPPORTUNITY_DESCRIPTION_FIELD` | Key of the opportunity field that gets the description (source, page, post slug, topic, UTM, message). Opportunities have no such field until one is added in Lightfield. The note carries the same details either way |
 
-## License
+Email is sent from `send.signalhaus.ai`. A From address on any other domain is ignored and the default `leads@send.signalhaus.ai` is used instead.
 
-Private — © SignalHaus AI. All rights reserved.
+Each lead carries its source form, the page path, the post slug, the first page of the visit, the referrer and any UTM params. To add a sink, implement `LeadSink` from `src/lib/leads/pipeline.ts` and add it to `src/lib/leads/sinks/index.ts`.
+
+## Environment variables
+
+`.env.example` lists every variable with a description. None are required to build or browse the site. The lead forms need a record sink, as described above. Analytics tags (Google Analytics, Microsoft Clarity, LinkedIn Insight) render only when their `NEXT_PUBLIC_*` id is set.
+
+Without the Upstash variables the rate limiter falls back to memory, which does not hold across serverless instances. Set them in production.
+
+## Design
+
+Colours, type and components follow the Signalhaus design system. The tokens are in `src/app/globals.css`. Icons and illustrations are inline SVG in `src/components/icons.tsx` and `src/components/illustrations.tsx`. Share images are generated in `src/lib/og/card.tsx`.
+
+The site has one call to action, "Tell me what you're working on". It lives in `PRIMARY_CTA` in `src/lib/site.ts`, and the header, the footer, the closing cards and the lead sections all read it from there. The lead form's button says "Send it to Nathan".
+
+The three typefaces (Newsreader, Hanken Grotesk and DM Mono) are served from the site itself. `src/app/fonts.ts` loads the files from the `@fontsource` packages, so neither the build nor a visitor's browser makes a request to Google Fonts.
+
+## Security headers
+
+`next.config.ts` sets a Content Security Policy, HSTS, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy` and `Permissions-Policy` on every route.
