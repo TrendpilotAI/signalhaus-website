@@ -51,7 +51,10 @@ export default function LeadForm({
   function update<K extends keyof LeadFormValues>(field: K, value: LeadFormValues[K]) {
     setValues((current) => ({ ...current, [field]: value }));
     if (errors[field as LeadFieldName]) {
-      setErrors((current) => ({ ...current, [field]: undefined }));
+      const remaining = { ...errors, [field]: undefined };
+      setErrors(remaining);
+      // The summary only describes field errors, so it goes when the last one does.
+      if (!FIELD_ORDER.some((name) => remaining[name])) setMessage(null);
     }
   }
 
