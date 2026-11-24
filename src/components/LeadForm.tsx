@@ -1,10 +1,10 @@
 "use client";
 
-import { useId, useRef, useState, type FormEvent } from "react";
+import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { IconCheck } from "@/components/icons";
 import { trackConversion } from "@/lib/gtag";
 import { collectAttribution } from "@/lib/leads/attribution";
-import { EMPTY_LEAD_FORM, submitLead, type LeadFormValues } from "@/lib/leads/client";
+import { EMPTY_LEAD_FORM, submitLead, type LeadFormValues, type SubmitLeadResult } from "@/lib/leads/client";
 import {
   HONEYPOT_FIELD,
   LEAD_LIMITS,
@@ -28,7 +28,42 @@ export interface LeadFormProps {
 
 type Status = "idle" | "sending" | "sent";
 
-const FIELD_ORDER: LeadFieldName[] = ["name", "email", "company", "topic", "workingOn"];
+const FIELD_ORDER = ["name", "email", "company", "topic", "workingOn"] as const satisfies readonly LeadFieldName[];
+
+/** Where focus goes after a submission that did not go through. */
+export type FailureFocusTarget = Exclude<LeadFieldName, "form"> | "submit";
+
+/**
+ * The first field with an error, in the order the fields appear. With no field
+ * to fix (the send itself failed), it is the submit button, which sits right
+ * under the message and is the way to try again.
+ */
+export function failureFocusTarget(fieldErrors: LeadFieldErrors): FailureFocusTarget {
+  return FIELD_ORDER.find((field) => fieldErrors[field]) ?? "submit";
+}
+
+export function focusInForm(form: Pick<HTMLFormElement, "querySelector"> | null, target: FailureFocusTarget) {
+  const selector = target === "submit" ? 'button[type="submit"]' : `[name="${target}"]`;
+  form?.querySelector<HTMLElement>(selector)?.focus();
+}
+
+/**
+ * The button is never given the native `disabled` attribute. Disabling a
+ * focused button drops focus to the page, which sends a keyboard user back to
+ * the top. `aria-disabled` says the same thing and leaves focus where it is.
+ * The form ignores a second submit while the first is on its way.
+ */
+export function LeadSubmitButton({ sending, label }: { sending: boolean; label: string }) {
+  return (
+    <button
+      type="submit"
+      className="btn btn-primary flex-none whitespace-nowrap"
+      aria-disabled={sending ? true : undefined}
+    >
+      {sending ? "Sending..." : label}
+    </button>
+  );
+}
 
 /** A ref for an element that should take focus as soon as it is on the page. */
 function focusOnMount(node: HTMLElement | null) {
@@ -68,6 +103,9 @@ export default function LeadForm({
 }: LeadFormProps) {
   const uid = useId();
   const formRef = useRef<HTMLFormElement>(null);
+  // Set and read within one tick, which state is not. Two submits fired back
+  // to back would both still see the old status.
+  const sendingRef = useRef(false);
   const [values, setValues] = useState<LeadFormValues>({
     ...EMPTY_LEAD_FORM,
     topic: defaultTopic ?? "",
@@ -75,6 +113,14 @@ export default function LeadForm({
   const [errors, setErrors] = useState<LeadFieldErrors>({});
   const [message, setMessage] = useState<string | null>(null);
   const [status, setStatus] = useState<Status>("idle");
+  // A new object for each failed submission, so two failures in a row both move focus.
+  const [focusRequest, setFocusRequest] = useState<{ target: FailureFocusTarget } | null>(null);
+
+  // Runs after the errors are on the page, so the field that takes focus
+  // already carries aria-invalid and points at its error text.
+  useEffect(() => {
+    if (focusRequest) focusInForm(formRef.current, focusRequest.target);
+  }, [focusRequest]);
 
   const id = (field: string) => `${uid}-${field}`;
 
@@ -88,15 +134,10 @@ export default function LeadForm({
     }
   }
 
-  function focusFirstError(fieldErrors: LeadFieldErrors) {
-    const first = FIELD_ORDER.find((field) => fieldErrors[field]);
-    if (!first) return;
-    formRef.current?.querySelector<HTMLElement>(`[name="${first}"]`)?.focus();
-  }
-
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (status === "sending") return;
+    // The button stays focusable while sending, so this is what stops a second send.
+    if (sendingRef.current) return;
 
     const attribution = collectAttribution(source, postSlug ?? null);
 
@@ -104,15 +145,21 @@ export default function LeadForm({
     if (!check.ok) {
       setErrors(check.errors);
       setMessage("A couple of things need fixing before this can send.");
-      focusFirstError(check.errors);
+      setFocusRequest({ target: failureFocusTarget(check.errors) });
       return;
     }
 
+    sendingRef.current = true;
     setStatus("sending");
     setErrors({});
     setMessage(null);
 
-    const result = await submitLead(values, attribution);
+    let result: SubmitLeadResult;
+    try {
+      result = await submitLead(values, attribution);
+    } finally {
+      sendingRef.current = false;
+    }
     if (result.ok) {
       setStatus("sent");
       trackConversion(`lead_${source}`);
@@ -122,7 +169,7 @@ export default function LeadForm({
     setStatus("idle");
     setErrors(result.fieldErrors);
     setMessage(result.message);
-    focusFirstError(result.fieldErrors);
+    setFocusRequest({ target: failureFocusTarget(result.fieldErrors) });
   }
 
   if (status === "sent") {
@@ -267,9 +314,7 @@ export default function LeadForm({
       ) : null}
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-        <button type="submit" className="btn btn-primary flex-none whitespace-nowrap" disabled={status === "sending"}>
-          {status === "sending" ? "Sending..." : submitLabel}
-        </button>
+        <LeadSubmitButton sending={status === "sending"} label={submitLabel} />
         <p className="caption">Sending this doesn&apos;t add you to a mailing list.</p>
       </div>
     </form>
