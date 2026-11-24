@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import ClosingCard from "@/components/ClosingCard";
 import JsonLd from "@/components/JsonLd";
-import PostList from "@/components/PostList";
+import FeaturedGuide from "@/components/FeaturedGuide";
+import GuideRows from "@/components/GuideRows";
 import ToolkitCallout from "@/components/ToolkitCallout";
 import { breadcrumbJsonLd } from "@/lib/jsonld";
 import { getAllPostsMeta } from "@/lib/mdx";
@@ -19,7 +19,7 @@ export const metadata: Metadata = {
 };
 
 export default function BlogIndexPage() {
-  const posts = getAllPostsMeta();
+  const [featured, ...rest] = getAllPostsMeta();
 
   return (
     <>
@@ -39,22 +39,21 @@ export default function BlogIndexPage() {
         </p>
       </section>
 
-      <section className="page pb-16" aria-label="All guides">
-        <PostList posts={posts} />
-      </section>
-
-      <section className="page flex flex-col gap-6 pb-16 md:pb-24">
-        <ToolkitCallout />
-        <p className="caption">
-          New guides also go out on the <a href="/feed.xml">RSS feed</a>. If your question
-          isn&apos;t here, <Link href="/contact">send it to me</Link>.
+      <section className="page pb-[calc(var(--spacing-section)/2)]" aria-label="All guides">
+        {featured ? <FeaturedGuide post={featured} /> : null}
+        <GuideRows posts={rest} />
+        <p className="caption pt-6">
+          New guides also go out on the <a href="/feed.xml">RSS feed</a>.
         </p>
       </section>
 
-      <ClosingCard
-        heading="Got a question that isn't here?"
-        cta={{ label: "Tell me what you're working on", href: "/contact" }}
-      />
+      <section className="section" aria-label="The free toolkit">
+        <div className="page">
+          <ToolkitCallout />
+        </div>
+      </section>
+
+      <ClosingCard heading="Got a question that isn't here?" />
     </>
   );
 }

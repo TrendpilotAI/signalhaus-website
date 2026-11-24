@@ -117,6 +117,27 @@ export function NoteOnItsWay(props: IllustrationProps) {
   );
 }
 
+/** Four question cards laid out on a table, one of them still open. */
+export function QuestionCards(props: IllustrationProps) {
+  return (
+    <svg viewBox="0 0 320 240" {...base} {...props}>
+      <path d="M40 58l104-7 5 66-104 8z" />
+      <path d="M56 76l58-4M57 91l72-5" opacity="0.7" />
+      <path d="M170 46l106 5-4 68-105-5z" />
+      <path d="M185 66l62 3M184 81l76 4" opacity="0.7" />
+      <path d="M48 140l104 5-4 66-104-6z" />
+      <path d="M63 160l60 3M62 175l74 4" opacity="0.7" />
+      <path d="M172 136l104-8 6 68-104 8z" />
+      <path d="M214 160c-1-11 17-13 18-2 1 8-9 8-8 17" stroke={SPOT} strokeWidth={1.8} />
+      <circle cx="224.5" cy="184" r="2.3" fill={SPOT} stroke="none" />
+      <circle cx="158" cy="26" r="5" opacity="0.7" />
+      <path d="M22 122l6 8-6 8-6-8z" opacity="0.7" />
+      <circle cx="298" cy="128" r="2.5" fill={SPOT} stroke="none" />
+      <circle cx="30" cy="200" r="2.5" fill={SPOT} stroke="none" />
+    </svg>
+  );
+}
+
 /** A signpost with nothing written on it, for the page that isn't there. */
 export function BlankSignpost(props: IllustrationProps) {
   return (

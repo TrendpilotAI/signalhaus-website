@@ -126,8 +126,8 @@ export default function AboutPage() {
       </section>
 
       <ClosingCard
-        heading="Tell me what you're working on."
-        cta={{ label: "Get in touch", href: "/contact" }}
+        heading="Haven't worked it all out yet?"
+        body="Give yourself a break. That's what advisors are for."
       />
     </>
   );

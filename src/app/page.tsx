@@ -157,7 +157,7 @@ export default function HomePage() {
             The weekly rhythm is a starting point. We set the days and times with your team.
           </p>
           <div className="flex flex-col items-start gap-4 border-t border-navy/20 pt-8 lg:flex-row lg:items-center lg:justify-between lg:gap-12">
-            <p className="lead max-w-[60ch]">
+            <p className="lead">
               There are three ways to work together: advisory, advisory and build, or hands-on.
             </p>
             <Link href="/services" className="link-arrow flex-none">

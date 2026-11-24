@@ -3,13 +3,13 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { MDXRemote } from "next-mdx-remote/rsc";
 import type { AnchorHTMLAttributes, HTMLAttributes, ReactNode } from "react";
-import ClosingCard from "@/components/ClosingCard";
+import AuthorCard from "@/components/AuthorCard";
+import { CompactGuideRows } from "@/components/GuideRows";
+import { IconChevronDown } from "@/components/icons";
 import JsonLd from "@/components/JsonLd";
 import LeadSection from "@/components/LeadSection";
-import PostList from "@/components/PostList";
-import ToolkitCallout from "@/components/ToolkitCallout";
 import { extractFaq } from "@/lib/faq";
-import { extractHeadings, headingId } from "@/lib/headings";
+import { extractHeadings, headingId, type Heading } from "@/lib/headings";
 import { articleJsonLd, articleUrl, breadcrumbJsonLd, faqPageJsonLd, type JsonLdObject } from "@/lib/jsonld";
 import { topicLabel } from "@/lib/leads/schema";
 import { formatDate, getAllPostsMeta, getPostBySlug } from "@/lib/mdx";
@@ -88,6 +88,21 @@ const mdxComponents = {
     ),
 };
 
+function TableOfContents({ headings }: { headings: Heading[] }) {
+  return (
+    <ol className="flex flex-col gap-3">
+      {headings.map((heading, index) => (
+        <li key={heading.id} className="flex gap-3 text-base leading-snug">
+          <span className="marker pt-[3px] !text-base">{String(index + 1).padStart(2, "0")}</span>
+          <a href={`#${heading.id}`} className="link-quiet">
+            {heading.text}
+          </a>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
 export default async function BlogPostPage({ params }: PageProps) {
   const { slug } = await params;
   const post = getPostBySlug(slug);
@@ -95,7 +110,8 @@ export default async function BlogPostPage({ params }: PageProps) {
 
   const url = articleUrl(slug);
   const headings = extractHeadings(post.content);
-  const faq = faqPageJsonLd(extractFaq(post.content), url);
+  const faqItems = extractFaq(post.content);
+  const faq = faqPageJsonLd(faqItems, url);
   const otherPosts = getAllPostsMeta().filter((other) => other.slug !== slug);
 
   const jsonLd: JsonLdObject[] = [
@@ -113,7 +129,7 @@ export default async function BlogPostPage({ params }: PageProps) {
       <JsonLd data={jsonLd} />
 
       <article>
-        <header className="page flex flex-col gap-6 pb-12 pt-10 md:pt-16">
+        <header className="page flex flex-col gap-6 pb-10 pt-10 md:pb-12 md:pt-16">
           <nav aria-label="Breadcrumb" className="caption">
             <Link href="/" className="link-quiet">
               Home
@@ -134,69 +150,81 @@ export default async function BlogPostPage({ params }: PageProps) {
           </p>
         </header>
 
-        <div className="page grid gap-12 pb-16 lg:grid-cols-[minmax(0,720px)_1fr] lg:gap-16">
-          <div className="prose-sh min-w-0">
-            <MDXRemote source={post.content} components={mdxComponents} />
+        <div className="page grid gap-8 lg:grid-cols-[minmax(0,720px)_minmax(0,1fr)] lg:gap-16">
+          {headings.length > 0 ? (
+            <details className="toc-details tile lg:hidden">
+              <summary>
+                On this page
+                <IconChevronDown width={18} height={18} />
+              </summary>
+              <nav aria-label="On this page" className="pt-4">
+                <TableOfContents headings={headings} />
+              </nav>
+            </details>
+          ) : null}
+
+          <div className="min-w-0">
+            <div className="prose-sh">
+              <MDXRemote source={post.content} components={mdxComponents} />
+            </div>
+
+            {faqItems.length > 0 ? (
+              <section aria-labelledby="short-answers-heading" className="mt-16 max-w-[68ch]">
+                <h2 id="short-answers-heading" className="h3">
+                  The short answers
+                </h2>
+                <dl className="mt-6 border-b border-navy/20">
+                  {faqItems.map((item) => {
+                    const target = headings.find((heading) => heading.text === item.question);
+                    return (
+                      <div key={item.question} className="border-t border-navy/20 py-5">
+                        <dt className="font-serif text-[1.25rem] leading-[1.25] text-navy">
+                          {target ? (
+                            <a href={`#${target.id}`} className="link-quiet">
+                              {item.question}
+                            </a>
+                          ) : (
+                            item.question
+                          )}
+                        </dt>
+                        <dd className="body-sm mt-2">{item.answer}</dd>
+                      </div>
+                    );
+                  })}
+                </dl>
+              </section>
+            ) : null}
+
+            <footer className="mt-16 max-w-[68ch]">
+              <AuthorCard author={post.author} />
+            </footer>
           </div>
 
           {headings.length > 0 ? (
-            <aside className="order-first lg:order-none">
-              <nav aria-label="On this page" className="tile lg:sticky lg:top-24">
+            <aside className="hidden lg:block">
+              <nav aria-label="On this page" className="tile sticky top-24">
                 <p className="eyebrow mb-4">On this page</p>
-                <ol className="flex flex-col gap-3">
-                  {headings.map((heading, index) => (
-                    <li key={heading.id} className="flex gap-3 text-base leading-snug">
-                      <span className="marker pt-[3px] !text-base">
-                        {String(index + 1).padStart(2, "0")}
-                      </span>
-                      <a href={`#${heading.id}`} className="link-quiet">
-                        {heading.text}
-                      </a>
-                    </li>
-                  ))}
-                </ol>
+                <TableOfContents headings={headings} />
               </nav>
             </aside>
           ) : null}
         </div>
-
-        <footer className="page pb-8">
-          <div className="quote max-w-[720px]">
-            <p className="body-sm">
-              Written by <strong className="font-bold">{post.author}</strong>
-              {post.author === SITE.founder.name ? `, an ${SITE.founder.bio}` : "."} Signalhaus is
-              his Services-as-Software consulting firm, and there&apos;s more about it on the{" "}
-              <Link href="/">home page</Link>.
-            </p>
-          </div>
-        </footer>
       </article>
 
-      <LeadSection
-        id="talk"
-        source="blog-post"
-        postSlug={slug}
-        defaultTopic={post.topic}
-      >
+      <section className="section mt-[calc(var(--spacing-section)/2)]" aria-labelledby="more-heading">
+        <div className="page flex flex-col gap-8">
+          <h2 id="more-heading" className="h2">
+            More guides
+          </h2>
+          <CompactGuideRows posts={otherPosts} />
+        </div>
+      </section>
+
+      <LeadSection id="talk" source="blog-post" postSlug={slug} defaultTopic={post.topic}>
         <p>
           Stuck on this one? Tell me where it&apos;s going wrong. A few plain sentences is plenty.
         </p>
       </LeadSection>
-
-      <section className="section" aria-labelledby="more-heading">
-        <div className="page flex flex-col gap-10">
-          <h2 id="more-heading" className="h2">
-            More guides
-          </h2>
-          <PostList posts={otherPosts} headingLevel="h3" />
-          <ToolkitCallout />
-        </div>
-      </section>
-
-      <ClosingCard
-        heading="Give yourself a break. Then pick one number."
-        cta={{ label: "See how I work with founders", href: "/services" }}
-      />
     </>
   );
 }

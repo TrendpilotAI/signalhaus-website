@@ -117,6 +117,8 @@ Without the Upstash variables the rate limiter falls back to memory, which does 
 
 Colours, type and components follow the Signalhaus design system. The tokens are in `src/app/globals.css`. Icons and illustrations are inline SVG in `src/components/icons.tsx` and `src/components/illustrations.tsx`. Share images are generated in `src/lib/og/card.tsx`.
 
+The site has one call to action, "Tell me what you're working on". It lives in `PRIMARY_CTA` in `src/lib/site.ts`, and the header, the footer, the closing cards and the lead sections all read it from there. The lead form's button says "Send it to Nathan".
+
 The three typefaces (Newsreader, Hanken Grotesk and DM Mono) are served from the site itself. `src/app/fonts.ts` loads the files from the `@fontsource` packages, so neither the build nor a visitor's browser makes a request to Google Fonts.
 
 ## Security headers

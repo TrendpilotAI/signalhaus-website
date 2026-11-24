@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import ClosingCard from "@/components/ClosingCard";
-import { IconAgent, IconCalendar, IconChart, IconCheck, IconHands, IconTalk, IconWrench } from "@/components/icons";
+import { IconAgent, IconCalendar, IconChart, IconCheck } from "@/components/icons";
 import JsonLd from "@/components/JsonLd";
 import ToolkitCallout from "@/components/ToolkitCallout";
 import { breadcrumbJsonLd } from "@/lib/jsonld";
@@ -58,12 +58,14 @@ const WEEK = [
   },
 ];
 
+const WAY_ROWS = ["Research", "Outreach and tracking", "Experiments", "Story and messages"];
+
+/** One column per way of working. Each has one cell for every row in WAY_ROWS, in order. */
 const WAYS = [
   {
-    icon: <IconTalk />,
     title: "Advisory",
     summary: "I advise, and your team does the work.",
-    points: [
+    cells: [
       "I guide the research on customers and competitors.",
       "I recommend how to set up outreach and tracking.",
       "We plan and review the weekly experiments together.",
@@ -71,10 +73,9 @@ const WAYS = [
     ],
   },
   {
-    icon: <IconWrench />,
     title: "Advisory and build",
     summary: "Advice, and I take on some of the implementation with you.",
-    points: [
+    cells: [
       "I lead the research with your input.",
       "I set up the outreach workflow and tracking with you.",
       "We plan the experiments together and I run some of them.",
@@ -82,10 +83,9 @@ const WAYS = [
     ],
   },
   {
-    icon: <IconHands />,
     title: "Hands-on",
     summary: "I do more of the building myself, so you get moving faster.",
-    points: [
+    cells: [
       "I lead the work and hand you a playbook you can use.",
       "I build and run the outreach system and tracking with you.",
       "I design, run and tune the experiments with you.",
@@ -113,13 +113,14 @@ export default function ServicesPage() {
         </p>
       </section>
 
+      {/* The navy title card, used once, for the one definition on the page. */}
       <section className="section !pt-8" aria-labelledby="what-heading">
-        <div className="page grid gap-10 lg:grid-cols-[5fr_7fr] lg:gap-16">
-          <h2 id="what-heading" className="h2">
-            What is Services-as-Software?
-          </h2>
-          <div className="flex flex-col gap-6">
-            <p>
+        <div className="page">
+          <div className="title-card grid gap-6 lg:grid-cols-[5fr_7fr] lg:gap-16">
+            <h2 id="what-heading" className="h2">
+              What is Services-as-Software?
+            </h2>
+            <p className="lead">
               It&apos;s a service that runs on software and AI agents, so it can scale the way a
               software company does. You still talk to a person. The difference is that the
               research, the tracking and a lot of the follow-up get done by agents during the week.
@@ -204,20 +205,50 @@ export default function ServicesPage() {
               your team does.
             </p>
           </div>
-          <ul className="grid gap-6 lg:grid-cols-3">
-            {WAYS.map((way) => (
-              <li key={way.title} className="tile flex flex-col items-start gap-4 md:!p-8">
-                <span className="icon-tile">{way.icon}</span>
-                <h3 className="h3">{way.title}</h3>
-                <p>{way.summary}</p>
-                <ul className="flex flex-col gap-3 pt-2 body-sm">
-                  {way.points.map((point) => (
-                    <li key={point} className="flex gap-3">
-                      <IconCheck width={18} height={18} className="mt-[5px] flex-none text-accent" />
-                      <span>{point}</span>
-                    </li>
+          {/* From 768px up: a table with filled cells and no outer lines. No prices on purpose. */}
+          <table className="compare hidden md:table">
+            <caption className="sr-only">
+              What I do and what your team does in each of the three ways to work together
+            </caption>
+            <thead>
+              <tr>
+                <td />
+                {WAYS.map((way) => (
+                  <th key={way.title} scope="col">
+                    <span className="h3 block">{way.title}</span>
+                    <span className="body-sm mt-2 block font-normal">{way.summary}</span>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {WAY_ROWS.map((row, index) => (
+                <tr key={row}>
+                  <th scope="row">{row}</th>
+                  {WAYS.map((way) => (
+                    <td key={way.title}>{way.cells[index]}</td>
                   ))}
-                </ul>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          {/* Below 768px the same cells stack into one card for each way. */}
+          <ul className="flex flex-col gap-6 md:hidden">
+            {WAYS.map((way) => (
+              <li key={way.title} className="compare-card">
+                <div className="compare-card-head">
+                  <h3 className="h3">{way.title}</h3>
+                  <p className="body-sm mt-2">{way.summary}</p>
+                </div>
+                <dl>
+                  {WAY_ROWS.map((row, index) => (
+                    <div key={row} className="compare-card-row">
+                      <dt>{row}</dt>
+                      <dd className="body-sm">{way.cells[index]}</dd>
+                    </div>
+                  ))}
+                </dl>
               </li>
             ))}
           </ul>
@@ -236,8 +267,7 @@ export default function ServicesPage() {
 
       <ClosingCard
         heading="Not sure which one fits?"
-        body="Tell me what you're working on and we can work it out from there."
-        cta={{ label: "Get in touch", href: "/contact" }}
+        body="A few plain sentences is plenty. We can work it out from there."
       />
     </>
   );

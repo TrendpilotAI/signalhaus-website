@@ -112,6 +112,11 @@
     padding-block: calc(var(--spacing-section) / 2);
   }
 
+  /* The last section on a page keeps the full distance from the footer. */
+  main > .section:last-child {
+    padding-bottom: var(--spacing-section);
+  }
+
   /* A full-width tinted band. It keeps the same distance inside as outside. */
   .band {
     margin-block: calc(var(--spacing-section) / 2);
@@ -301,6 +306,109 @@
     color: var(--color-accent-dim);
   }
 
+  /* A navy ring is too close to terracotta, so the ring is white on the closing card. */
+  .btn-on-accent:focus-visible {
+    outline-color: var(--color-on-accent);
+  }
+
+  /* The dark title card. White text on navy, used for one definition at a time. */
+  .title-card {
+    border-radius: var(--radius-tile);
+    padding: 32px 24px;
+    background-color: var(--color-navy);
+    color: var(--color-on-accent);
+  }
+
+  .title-card :is(h2, h3, p) {
+    color: inherit;
+  }
+
+  @media (min-width: 768px) {
+    .title-card {
+      padding: 48px;
+    }
+  }
+
+  /* Comparison table. Filled cells with paper showing between them, and no outer lines. */
+  .compare {
+    width: calc(100% + 8px);
+    margin: -4px;
+    border-collapse: separate;
+    border-spacing: 4px;
+    table-layout: fixed;
+  }
+
+  .compare :is(th, td) {
+    padding: 16px;
+    text-align: left;
+    vertical-align: top;
+    font-size: 1.0625rem;
+    line-height: 1.5;
+  }
+
+  .compare th {
+    background-color: var(--color-callout);
+    color: var(--color-navy);
+    font-weight: 600;
+  }
+
+  .compare tbody td {
+    background-color: var(--color-light);
+  }
+
+  .compare thead td {
+    width: 22%;
+  }
+
+  /* The same cells as a card, for narrow screens. */
+  .compare-card {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    overflow: hidden;
+    border-radius: var(--radius-tile);
+  }
+
+  .compare-card dl {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .compare-card-head {
+    padding: 16px;
+    background-color: var(--color-callout);
+  }
+
+  .compare-card-row {
+    padding: 12px 16px;
+    background-color: var(--color-light);
+  }
+
+  .compare-card-row dt {
+    margin-bottom: 4px;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--color-navy);
+  }
+
+  /* Initials in a navy square, where a photo would otherwise go. */
+  .monogram {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 64px;
+    height: 64px;
+    flex: none;
+    border-radius: var(--radius-tile);
+    background-color: var(--color-navy);
+    color: var(--color-on-accent);
+    font-family: var(--font-serif);
+    font-size: 1.75rem;
+    line-height: 1;
+    letter-spacing: -0.01em;
+  }
+
   /* Process step pill. One is filled terracotta, the rest are outlined navy. */
   .step-pill {
     display: flex;
@@ -421,6 +529,41 @@
     overflow: hidden;
   }
 
+  /* The table of contents on a narrow screen: closed until asked for. */
+  .toc-details {
+    padding: 0;
+  }
+
+  .toc-details > summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    min-height: 49px;
+    padding: 12px 24px;
+    border-radius: var(--radius-tile);
+    cursor: pointer;
+    list-style: none;
+    font-weight: 500;
+    font-size: 0.9375rem;
+    line-height: 1.2;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-navy);
+  }
+
+  .toc-details > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .toc-details[open] > summary svg {
+    transform: rotate(180deg);
+  }
+
+  .toc-details > nav {
+    padding: 0 24px 24px;
+  }
+
   /* Long-form post body. */
   .prose-sh {
     max-width: 68ch;
@@ -448,8 +591,13 @@
     margin-top: 1.6em;
   }
 
+  /* The short answer: the first paragraph under each question. */
   .prose-sh h2 + p {
-    margin-top: 0.7em;
+    margin-top: 0.8em;
+    padding-left: 20px;
+    border-left: 3.44px solid var(--color-accent);
+    font-size: 1.25rem;
+    line-height: 1.45;
   }
 
   .prose-sh a {
