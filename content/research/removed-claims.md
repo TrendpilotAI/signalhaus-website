@@ -182,7 +182,7 @@ None of the five existing posts fits the new positioning. All five are written i
 
 ## 14. Moved out, and left alone
 
-- `BRAINSTORM.md`, `PLAN.md`, `AUDIT.md` and `DEPLOY.md` were internal planning notes from the old build. `BRAINSTORM.md:27` repeated the "$50M+, 60-80%, 100% retention" line. They were never served by the site. On 24 Nov 2026 they were moved, unchanged, to a private repo and deleted from this branch, because this repo is public. The research questions file that sat next to this one moved with them.
+- `BRAINSTORM.md`, `PLAN.md`, `AUDIT.md` and `DEPLOY.md` were internal planning notes from the old build. `BRAINSTORM.md:27` repeated the "$50M+, 60-80%, 100% retention" line. They were never served by the site. On 23 Nov 2026 they were moved, unchanged, to a private repo and deleted from this branch, because this repo is public. The research questions file that sat next to this one moved with them.
 - Deleting them from this branch does not take them out of the git history, and the four planning notes are still on `main` until this branch is merged.
 - The live site is not touched by this branch. Everything in the "Live site" rows stays live until this branch is deployed.
 
