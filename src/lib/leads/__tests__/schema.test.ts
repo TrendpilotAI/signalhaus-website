@@ -105,11 +105,20 @@ describe("validateLead", () => {
     ["company", "javascript:alert(1)"],
     ["workingOn", 'Here is my pitch <img src=x onerror="alert(1)">'],
     ["role", "<iframe src=//evil.example>"],
+    ["workingOn", "<a href=x\nonclick = 'go()'>link</a>"],
   ])("rejects script-like content in %s", (field, value) => {
     const result = validateLead(validBody({ [field]: value }));
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.errors[field as "name"]).toBeDefined();
+  });
+
+  it.each([
+    "Our onboarding = 3 weeks and I want it down to one.",
+    "Conversion=2% today, and retention = flat since March.",
+    "Is 5 < 10 a fair way to say it? Also: button = too small.",
+  ])("accepts ordinary text with an equals sign: %s", (workingOn) => {
+    expect(validateLead(validBody({ workingOn })).ok).toBe(true);
   });
 
   it("ignores non-string values instead of throwing", () => {

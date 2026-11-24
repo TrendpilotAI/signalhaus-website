@@ -79,7 +79,8 @@ export const LEAD_LIMITS = {
 } as const;
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
-const BLOCKED_PATTERNS = [/<script/i, /javascript:/i, /on\w+\s*=/i, /<iframe/i];
+// An inline handler only counts inside a tag, so "onboarding = 3 weeks" is fine.
+const BLOCKED_PATTERNS = [/<script/i, /javascript:/i, /<[^>]*\son\w+\s*=/i, /<iframe/i];
 const CONTROL_CHARS = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g;
 const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const LEAD_SOURCE_RE = /^[a-z0-9]+(?:[-_:][a-z0-9]+)*$/;
