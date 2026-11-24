@@ -301,6 +301,41 @@
     color: var(--color-accent-dim);
   }
 
+  /* Process step pill. One is filled terracotta, the rest are outlined navy. */
+  .step-pill {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 49px;
+    padding: 8px 16px;
+    border-radius: var(--radius-button);
+    border: 0.69px solid var(--color-navy);
+    background-color: var(--color-paper);
+    color: var(--color-navy);
+    font-family: var(--font-sans);
+    font-weight: 500;
+    font-size: 1rem;
+    line-height: 1.2;
+    letter-spacing: 0.01em;
+    text-wrap: wrap;
+  }
+
+  .step-pill-primary {
+    border-color: var(--color-accent);
+    background-color: var(--color-accent);
+    color: var(--color-on-accent);
+  }
+
+  .step-pill-marker {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--color-accent);
+  }
+
+  .step-pill-primary .step-pill-marker {
+    color: inherit;
+  }
+
   .quote {
     border-left: 2px solid var(--color-accent);
     padding-left: 21px;

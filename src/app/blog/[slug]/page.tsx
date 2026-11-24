@@ -177,11 +177,9 @@ export default async function BlogPostPage({ params }: PageProps) {
         source="blog-post"
         postSlug={slug}
         defaultTopic={post.topic}
-        heading="Stuck on this one?"
       >
         <p>
-          Tell me what you&apos;re working on and where it&apos;s going wrong. A few plain sentences
-          is plenty.
+          Stuck on this one? Tell me where it&apos;s going wrong. A few plain sentences is plenty.
         </p>
       </LeadSection>
 
