@@ -29,7 +29,7 @@ export const slackSink: LeadSink = {
       lead.workingOn.length > MESSAGE_PREVIEW_LENGTH
         ? `${lead.workingOn.slice(0, MESSAGE_PREVIEW_LENGTH)}...`
         : lead.workingOn;
-    const who = [lead.name, lead.role, lead.company].filter(Boolean).join(", ");
+    const who = [lead.name, lead.company].filter(Boolean).join(", ");
 
     const response = await fetch(webhookUrl, {
       method: "POST",

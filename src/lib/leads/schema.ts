@@ -49,7 +49,6 @@ export interface LeadFields {
   name: string;
   email: string;
   company: string;
-  role: string;
   workingOn: string;
   topic: LeadTopic;
   attribution: LeadAttribution;
@@ -60,7 +59,7 @@ export interface Lead extends LeadFields {
   receivedAt: string;
 }
 
-export type LeadFieldName = "name" | "email" | "company" | "role" | "workingOn" | "topic" | "form";
+export type LeadFieldName = "name" | "email" | "company" | "workingOn" | "topic" | "form";
 export type LeadFieldErrors = Partial<Record<LeadFieldName, string>>;
 
 export type LeadValidationResult =
@@ -71,7 +70,6 @@ export const LEAD_LIMITS = {
   name: 100,
   email: 254,
   company: 200,
-  role: 100,
   workingOnMin: 10,
   workingOnMax: 5000,
   path: 300,
@@ -189,9 +187,6 @@ export function validateLead(body: unknown): LeadValidationResult {
     errors.company = `Keep the company name under ${LEAD_LIMITS.company} characters.`;
   }
 
-  const role = cleanSingleLine(record.role);
-  if (role.length > LEAD_LIMITS.role) errors.role = `Keep your role under ${LEAD_LIMITS.role} characters.`;
-
   const workingOn = cleanString(record.workingOn);
   if (!workingOn) errors.workingOn = "Tell me a little about what you're working on.";
   else if (workingOn.length < LEAD_LIMITS.workingOnMin) {
@@ -208,7 +203,6 @@ export function validateLead(body: unknown): LeadValidationResult {
     ["name", name],
     ["email", email],
     ["company", company],
-    ["role", role],
     ["workingOn", workingOn],
   ];
   for (const [field, value] of textFields) {
@@ -225,7 +219,6 @@ export function validateLead(body: unknown): LeadValidationResult {
       name,
       email,
       company,
-      role,
       workingOn,
       topic: topic as LeadTopic,
       attribution: sanitizeAttribution(record.attribution),

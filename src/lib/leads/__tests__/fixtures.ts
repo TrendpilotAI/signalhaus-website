@@ -6,7 +6,6 @@ export function validBody(overrides: Record<string, unknown> = {}): Record<strin
     name: "Ada Example",
     email: "ada@example.com",
     company: "Example Labs",
-    role: "Founder",
     workingOn: "Working out which customer segment to go after first.",
     topic: "positioning",
     website: "",
@@ -29,7 +28,6 @@ export function makeLead(overrides: Partial<Lead> = {}): Lead {
     name: "Ada Example",
     email: "ada@example.com",
     company: "Example Labs",
-    role: "Founder",
     workingOn: "Working out which customer segment to go after first.",
     topic: "positioning",
     attribution: {

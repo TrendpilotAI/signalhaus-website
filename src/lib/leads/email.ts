@@ -62,7 +62,6 @@ export function leadSummaryRows(lead: Lead): Array<[label: string, value: string
     ["Name", lead.name],
     ["Email", lead.email],
     ["Company", lead.company || "Not given"],
-    ["Role", lead.role || "Not given"],
     ["Topic", topicLabel(lead.topic)],
     ["Lead source", attribution.leadSource],
     ["Page", attribution.pagePath],

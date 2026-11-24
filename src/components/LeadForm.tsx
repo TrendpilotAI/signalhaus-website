@@ -28,7 +28,7 @@ export interface LeadFormProps {
 
 type Status = "idle" | "sending" | "sent";
 
-const FIELD_ORDER: LeadFieldName[] = ["name", "email", "company", "role", "topic", "workingOn"];
+const FIELD_ORDER: LeadFieldName[] = ["name", "email", "company", "topic", "workingOn"];
 
 export default function LeadForm({
   source,
@@ -184,64 +184,48 @@ export default function LeadForm({
           {fieldError("company")}
         </div>
         <div>
-          <label htmlFor={id("role")} className="field-label">
-            Your role <span className="font-normal text-muted">(optional)</span>
+          <label htmlFor={id("topic")} className="field-label">
+            What is it mostly about?
           </label>
-          <input
-            id={id("role")}
-            name="role"
-            type="text"
-            autoComplete="organization-title"
-            maxLength={LEAD_LIMITS.role}
-            value={values.role}
-            onChange={(e) => update("role", e.target.value)}
-            aria-invalid={errors.role ? true : undefined}
-            aria-describedby={describedBy("role")}
-            className="field-input"
-          />
-          {fieldError("role")}
+          <select
+            id={id("topic")}
+            name="topic"
+            required
+            value={values.topic}
+            onChange={(e) => update("topic", e.target.value as LeadTopic | "")}
+            aria-invalid={errors.topic ? true : undefined}
+            aria-describedby={describedBy("topic")}
+            className="field-input field-select"
+          >
+            <option value="">Pick the closest one</option>
+            {LEAD_TOPICS.map((topic) => (
+              <option key={topic.value} value={topic.value}>
+                {topic.label}
+              </option>
+            ))}
+          </select>
+          {fieldError("topic")}
         </div>
-      </div>
-
-      <div>
-        <label htmlFor={id("topic")} className="field-label">
-          What is it mostly about?
-        </label>
-        <select
-          id={id("topic")}
-          name="topic"
-          required
-          value={values.topic}
-          onChange={(e) => update("topic", e.target.value as LeadTopic | "")}
-          aria-invalid={errors.topic ? true : undefined}
-          aria-describedby={describedBy("topic")}
-          className="field-input"
-        >
-          <option value="">Pick the closest one</option>
-          {LEAD_TOPICS.map((topic) => (
-            <option key={topic.value} value={topic.value}>
-              {topic.label}
-            </option>
-          ))}
-        </select>
-        {fieldError("topic")}
       </div>
 
       <div>
         <label htmlFor={id("workingOn")} className="field-label">
           What are you working on?
         </label>
+        <p id={id("workingOn-hint")} className="field-hint">
+          A few plain sentences is plenty. What you&apos;re building, your role in it, and where
+          you&apos;re stuck.
+        </p>
         <textarea
           id={id("workingOn")}
           name="workingOn"
           required
           rows={5}
           maxLength={LEAD_LIMITS.workingOnMax}
-          placeholder="A few plain sentences is plenty. What you're building, and where you're stuck."
           value={values.workingOn}
           onChange={(e) => update("workingOn", e.target.value)}
           aria-invalid={errors.workingOn ? true : undefined}
-          aria-describedby={describedBy("workingOn")}
+          aria-describedby={[id("workingOn-hint"), describedBy("workingOn")].filter(Boolean).join(" ")}
           className="field-input resize-y"
         />
         {fieldError("workingOn")}
@@ -271,7 +255,7 @@ export default function LeadForm({
         <button type="submit" className="btn btn-primary flex-none whitespace-nowrap" disabled={status === "sending"}>
           {status === "sending" ? "Sending..." : submitLabel}
         </button>
-        <p className="caption">Your note goes to Nathan. It doesn&apos;t add you to a mailing list.</p>
+        <p className="caption">Sending this doesn&apos;t add you to a mailing list.</p>
       </div>
     </form>
   );

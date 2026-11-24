@@ -12,7 +12,6 @@ export interface LeadFormValues {
   name: string;
   email: string;
   company: string;
-  role: string;
   workingOn: string;
   topic: LeadTopic | "";
   /** Honeypot. Stays empty for real visitors. */
@@ -23,7 +22,6 @@ export const EMPTY_LEAD_FORM: LeadFormValues = {
   name: "",
   email: "",
   company: "",
-  role: "",
   workingOn: "",
   topic: "",
   [HONEYPOT_FIELD]: "",

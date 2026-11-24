@@ -27,12 +27,25 @@ describe("validateLead", () => {
     });
   });
 
-  it("treats company and role as optional", () => {
-    const result = validateLead(validBody({ company: "", role: undefined }));
+  it("treats company as optional", () => {
+    const result = validateLead(validBody({ company: "" }));
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.fields.company).toBe("");
-    expect(result.fields.role).toBe("");
+  });
+
+  it("no longer has a role field, and drops one sent by an older copy of the form", () => {
+    const result = validateLead(validBody({ role: "Founder" }));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.fields).not.toHaveProperty("role");
+    expect(JSON.stringify(result.fields)).not.toContain("Founder");
+  });
+
+  it("does not reject a lead over what an old role field holds", () => {
+    for (const role of ["r".repeat(5000), "<iframe src=//evil.example>", 42, null]) {
+      expect(validateLead(validBody({ role })).ok).toBe(true);
+    }
   });
 
   it.each(LEAD_TOPIC_VALUES)("accepts the topic %s", (topic) => {
@@ -92,19 +105,18 @@ describe("validateLead", () => {
       validBody({
         name: "n".repeat(LEAD_LIMITS.name + 1),
         company: "c".repeat(LEAD_LIMITS.company + 1),
-        role: "r".repeat(LEAD_LIMITS.role + 1),
       })
     );
     expect(result.ok).toBe(false);
     if (result.ok) return;
-    expect(Object.keys(result.errors).sort()).toEqual(["company", "name", "role"]);
+    expect(Object.keys(result.errors).sort()).toEqual(["company", "name"]);
   });
 
   it.each([
     ["name", "<script>alert(1)</script>"],
     ["company", "javascript:alert(1)"],
     ["workingOn", 'Here is my pitch <img src=x onerror="alert(1)">'],
-    ["role", "<iframe src=//evil.example>"],
+    ["company", "<iframe src=//evil.example>"],
     ["workingOn", "<a href=x\nonclick = 'go()'>link</a>"],
   ])("rejects script-like content in %s", (field, value) => {
     const result = validateLead(validBody({ [field]: value }));

@@ -257,7 +257,7 @@ describe("POST /api/leads", () => {
 
       const written = consoleOutput();
       expect(written).toContain("a***@example.com");
-      for (const secret of ["Ada", "ada@example.com", "Example Labs", "Founder", "customer segment"]) {
+      for (const secret of ["Ada", "ada@example.com", "Example Labs", "customer segment"]) {
         expect(written).not.toContain(secret);
       }
     });

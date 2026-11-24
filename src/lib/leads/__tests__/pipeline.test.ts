@@ -116,7 +116,6 @@ describe("log sink privacy", () => {
       name: "Zelda Quartermaine",
       email: "zelda.quartermaine@unusual-domain.example",
       company: "Quartermaine Holdings",
-      role: "Chief Everything Officer",
       workingOn: "A very private description of the plan.",
     });
     expect(Object.keys(leadLogEntry(lead)).sort()).toEqual([
