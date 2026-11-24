@@ -1,14 +1,14 @@
 import Link from "next/link";
 import { IconFeed, LogoMark } from "@/components/icons";
 import { getAllPostsMeta } from "@/lib/mdx";
-import { SITE, TOOLKIT_URL } from "@/lib/site";
+import { PRIMARY_CTA, SITE, TOOLKIT_URL } from "@/lib/site";
 
 const SITE_LINKS = [
   { label: "Home", href: "/" },
   { label: "Services", href: "/services" },
   { label: "Guides", href: "/blog" },
   { label: "About", href: "/about" },
-  { label: "Get in touch", href: "/contact" },
+  { label: "Contact", href: "/contact" },
 ];
 
 export default function Footer() {
@@ -16,7 +16,16 @@ export default function Footer() {
 
   return (
     <footer className="bg-tile">
-      <div className="page grid gap-12 py-16 md:grid-cols-[1.3fr_1fr_1.6fr]">
+      <div className="page">
+        <div className="flex flex-col items-start gap-6 border-b border-navy/15 py-12 lg:flex-row lg:items-center lg:justify-between lg:gap-12">
+          <p className="h2 max-w-[22ch]">Advice from a person. Legwork from agents.</p>
+          <Link href={PRIMARY_CTA.href} className="btn btn-primary flex-none">
+            {PRIMARY_CTA.label}
+          </Link>
+        </div>
+      </div>
+
+      <div className="page grid gap-12 py-12 md:grid-cols-[1.3fr_1fr_1.8fr]">
         <div className="flex flex-col gap-4">
           <Link href="/" className="link-quiet flex items-center gap-3" aria-label={`${SITE.name} home`}>
             <span className="icon-tile">
@@ -32,8 +41,10 @@ export default function Footer() {
           </p>
         </div>
 
-        <nav aria-label="Site" className="flex flex-col gap-3">
-          <p className="eyebrow">Site</p>
+        <nav aria-labelledby="footer-site" className="flex flex-col gap-4">
+          <h2 id="footer-site" className="eyebrow">
+            Site
+          </h2>
           <ul className="flex flex-col gap-2 text-base">
             {SITE_LINKS.map((link) => (
               <li key={link.href}>
@@ -42,24 +53,27 @@ export default function Footer() {
                 </Link>
               </li>
             ))}
+            <li>
+              <a href={TOOLKIT_URL} target="_blank" rel="noopener" className="link-quiet">
+                The free toolkit
+              </a>
+            </li>
           </ul>
         </nav>
 
-        <nav aria-label="Guides" className="flex flex-col gap-3">
-          <p className="eyebrow">Guides</p>
-          <ul className="flex flex-col gap-2 text-base">
+        <nav aria-labelledby="footer-guides" className="flex flex-col gap-4">
+          <h2 id="footer-guides" className="eyebrow">
+            Guides
+          </h2>
+          <ul className="flex flex-col gap-3 text-base">
             {posts.map((post) => (
-              <li key={post.slug}>
+              <li key={post.slug} className="flex flex-col gap-x-4 sm:flex-row sm:items-baseline sm:justify-between">
                 <Link href={`/blog/${post.slug}`} className="link-quiet">
                   {post.title}
                 </Link>
+                <span className="caption flex-none">{post.readingTime}</span>
               </li>
             ))}
-            <li>
-              <a href={TOOLKIT_URL} target="_blank" rel="noopener" className="link-quiet">
-                The Data-Driven Decision-Making Toolkit
-              </a>
-            </li>
           </ul>
         </nav>
       </div>

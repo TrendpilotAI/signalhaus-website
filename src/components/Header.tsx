@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { IconClose, IconMenu, LogoMark } from "@/components/icons";
-import { SITE } from "@/lib/site";
+import { PRIMARY_CTA, SITE } from "@/lib/site";
 
 const NAV = [
   { label: "Services", href: "/services" },
@@ -16,19 +16,30 @@ function isCurrent(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
+function subscribeToScroll(onChange: () => void): () => void {
+  window.addEventListener("scroll", onChange, { passive: true });
+  return () => window.removeEventListener("scroll", onChange);
+}
+
+const hasScrolled = () => window.scrollY > 4;
+const hasScrolledOnServer = () => false;
+
 export default function Header() {
   const pathname = usePathname() ?? "/";
   const [open, setOpen] = useState(false);
+  const scrolled = useSyncExternalStore(subscribeToScroll, hasScrolled, hasScrolledOnServer);
 
   return (
-    <header className="bg-paper">
+    <header
+      className={`sticky top-0 z-40 border-b bg-paper ${scrolled || open ? "border-navy/15" : "border-transparent"}`}
+    >
       <a
         href="#main"
-        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:bg-light focus:px-4 focus:py-2"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-2 focus:z-50 focus:bg-light focus:px-4 focus:py-2"
       >
         Skip to the content
       </a>
-      <div className="page flex min-h-[76px] items-center justify-between gap-6">
+      <div className="page flex h-16 items-center justify-between gap-6">
         <Link href="/" className="link-quiet flex items-center gap-3" aria-label={`${SITE.name} home`}>
           <span className="icon-tile">
             <LogoMark />
@@ -38,19 +49,19 @@ export default function Header() {
           </span>
         </Link>
 
-        <nav aria-label="Main" className="hidden items-center gap-8 md:flex">
+        <nav aria-label="Main" className="hidden items-center gap-8 lg:flex">
           {NAV.map((item) => (
             <Link
               key={item.href}
               href={item.href}
               aria-current={isCurrent(pathname, item.href) ? "page" : undefined}
-              className="link-quiet text-[1.0625rem] font-medium text-navy aria-[current=page]:underline aria-[current=page]:decoration-accent aria-[current=page]:decoration-2 aria-[current=page]:underline-offset-8"
+              className="link-quiet body-sm font-medium text-navy aria-[current=page]:underline aria-[current=page]:decoration-accent aria-[current=page]:decoration-2 aria-[current=page]:underline-offset-8"
             >
               {item.label}
             </Link>
           ))}
-          <Link href="/contact" className="btn btn-primary">
-            Get in touch
+          <Link href={PRIMARY_CTA.href} className="btn btn-primary btn-compact">
+            {PRIMARY_CTA.label}
           </Link>
         </nav>
 
@@ -60,14 +71,18 @@ export default function Header() {
           aria-expanded={open}
           aria-controls="mobile-nav"
           aria-label={open ? "Close the menu" : "Open the menu"}
-          className="flex h-12 w-12 items-center justify-center text-navy md:hidden"
+          className="-mr-3 flex h-12 w-12 items-center justify-center text-navy lg:hidden"
         >
           {open ? <IconClose /> : <IconMenu />}
         </button>
       </div>
 
       {open ? (
-        <nav id="mobile-nav" aria-label="Main" className="page flex flex-col gap-2 pb-6 md:hidden">
+        <nav
+          id="mobile-nav"
+          aria-label="Main"
+          className="page flex max-h-[calc(100dvh-64px)] flex-col gap-2 overflow-y-auto pb-6 lg:hidden"
+        >
           {NAV.map((item) => (
             <Link
               key={item.href}
@@ -79,8 +94,8 @@ export default function Header() {
               {item.label}
             </Link>
           ))}
-          <Link href="/contact" onClick={() => setOpen(false)} className="btn btn-primary mt-2">
-            Get in touch
+          <Link href={PRIMARY_CTA.href} onClick={() => setOpen(false)} className="btn btn-primary mt-2">
+            {PRIMARY_CTA.label}
           </Link>
         </nav>
       ) : null}

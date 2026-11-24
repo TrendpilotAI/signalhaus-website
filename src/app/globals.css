@@ -255,6 +255,12 @@
       color 150ms ease;
   }
 
+  /* For the sticky header, which is 64px tall. */
+  .btn-compact {
+    min-height: 44px;
+    padding-block: 8px;
+  }
+
   .btn-primary {
     background-color: var(--color-accent);
     border-color: var(--color-accent);

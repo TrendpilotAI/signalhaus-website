@@ -17,6 +17,12 @@ export const SITE = {
   },
 } as const;
 
+/** The one call to action the site uses. Every button and closing card says this. */
+export const PRIMARY_CTA = {
+  label: "Tell me what you're working on",
+  href: "/contact",
+} as const;
+
 export function absoluteUrl(path: string): string {
   if (/^https?:\/\//.test(path)) return path;
   return `${SITE_URL}${path.startsWith("/") ? path : `/${path}`}`;
