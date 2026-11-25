@@ -8,15 +8,17 @@ const root = path.join(__dirname, "../../..");
 describe("skip link target", () => {
   it("gives main a tabIndex so the skip link can move keyboard focus into it", () => {
     const source = readFileSync(path.join(root, "src/app/layout.tsx"), "utf8");
-    expect(source).toMatch(/<main\b[^>]*\bid=["']main["']/);
-    expect(source).toMatch(/tabIndex=\{-1\}/);
+    // Both attributes must sit on the same <main>, in either order.
+    expect(source).toMatch(
+      /<main\b(?=[^>]*\bid=["']main["'])(?=[^>]*\btabIndex=\{-1\})[^>]*>/
+    );
   });
 });
 
 describe("caption links", () => {
   it("underlines links inside captions so they do not rely on colour alone", () => {
     const css = readFileSync(path.join(root, "src/app/globals.css"), "utf8");
-    expect(css).toMatch(/\.caption\s+a\s*,\s*\n\s*\.caption\s+\.link-quiet/);
+    expect(css).toMatch(/\.caption\s+a\s*,\s*\.caption\s+\.link-quiet/);
     expect(css).toMatch(/text-decoration:\s*underline/);
   });
 });
