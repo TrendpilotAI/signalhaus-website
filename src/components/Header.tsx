@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { IconClose, IconMenu, LogoMark } from "@/components/icons";
 import { PRIMARY_CTA, SITE } from "@/lib/site";
 
@@ -24,10 +24,24 @@ function subscribeToScroll(onChange: () => void): () => void {
 const hasScrolled = () => window.scrollY > 4;
 const hasScrolledOnServer = () => false;
 
+/** True when a key press should close the open mobile menu. */
+export function isMenuCloseKey(key: string): boolean {
+  return key === "Escape";
+}
+
 export default function Header() {
   const pathname = usePathname() ?? "/";
   const [open, setOpen] = useState(false);
   const scrolled = useSyncExternalStore(subscribeToScroll, hasScrolled, hasScrolledOnServer);
+
+  useEffect(() => {
+    if (!open) return;
+    function onKeyDown(event: KeyboardEvent) {
+      if (isMenuCloseKey(event.key)) setOpen(false);
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [open]);
 
   return (
     <header

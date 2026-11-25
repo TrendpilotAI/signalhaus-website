@@ -43,7 +43,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <LinkedInInsight partnerId={process.env.NEXT_PUBLIC_LINKEDIN_PARTNER_ID || ""} />
         <AttributionTracker />
         <Header />
-        <main id="main">{children}</main>
+        {/* tabIndex=-1 lets the skip link move keyboard focus into the main landmark. */}
+        <main id="main" tabIndex={-1}>
+          {children}
+        </main>
         <Footer />
       </body>
     </html>
