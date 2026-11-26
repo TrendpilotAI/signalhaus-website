@@ -93,6 +93,30 @@
     outline-offset: 2px;
     border-radius: 2px;
   }
+
+  /*
+   * Skip-link target. The outline is only for keyboard focus; mouse clicks on
+   * the main landmark should not draw a ring.
+   */
+  main:focus {
+    outline: none;
+  }
+
+  main:focus-visible {
+    outline: 3px solid var(--color-navy);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
 }
 
 @layer components {
@@ -471,6 +495,26 @@
     text-decoration: underline;
     text-decoration-thickness: 1px;
     text-decoration-color: var(--color-accent);
+  }
+
+  /*
+   * Caption text is muted (#545A66). A navy link without an underline only
+   * differs by ~2:1 from that text, which fails WCAG link-in-text-block.
+   * Keep the underline so the link is clear without relying on colour alone.
+   */
+  .caption a,
+  .caption .link-quiet {
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-decoration-color: var(--color-accent);
+    text-underline-offset: 0.18em;
+  }
+
+  /* WCAG 2.2 AA 2.5.8: standalone footer links need a 24px-tall target. */
+  .footer-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
   }
 
   /* A text link that ends in an arrow. */

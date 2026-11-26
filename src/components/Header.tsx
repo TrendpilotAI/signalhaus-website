@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { IconClose, IconMenu, LogoMark } from "@/components/icons";
 import { PRIMARY_CTA, SITE } from "@/lib/site";
 
@@ -24,10 +24,71 @@ function subscribeToScroll(onChange: () => void): () => void {
 const hasScrolled = () => window.scrollY > 4;
 const hasScrolledOnServer = () => false;
 
+/** True when a key press should close the open mobile menu. */
+export function isMenuCloseKey(key: string): boolean {
+  return key === "Escape";
+}
+
+interface CloseMobileMenuOnEscapeArgs {
+  key: string;
+  /** Where focus is when the key fires. */
+  activeElement: Element | null;
+  /** The open mobile nav, or null when it is not on the page. */
+  menu: Pick<HTMLElement, "contains"> | null;
+  /** The button that opened the menu. */
+  toggle: Pick<HTMLElement, "focus"> | null;
+  close: () => void;
+  preventDefault: () => void;
+}
+
+/**
+ * Closes the mobile menu on Escape. When focus was inside the menu, moves it
+ * back to the toggle before React unmounts the nav, so it does not fall to
+ * <body>.
+ */
+export function closeMobileMenuOnEscape({
+  key,
+  activeElement,
+  menu,
+  toggle,
+  close,
+  preventDefault,
+}: CloseMobileMenuOnEscapeArgs): boolean {
+  if (!isMenuCloseKey(key)) return false;
+  preventDefault();
+  // activeElement is an Element in the browser (and so a Node). The suite has
+  // no DOM globals, so we avoid `instanceof Node` and ask the menu directly.
+  const focusWasInMenu =
+    menu != null && activeElement != null && menu.contains(activeElement as Node);
+  close();
+  // Focus while this handler is still running: setState has not re-rendered yet,
+  // so the menu is still mounted, but the toggle already holds focus for the
+  // unmount that follows.
+  if (focusWasInMenu) toggle?.focus();
+  return true;
+}
+
 export default function Header() {
   const pathname = usePathname() ?? "/";
   const [open, setOpen] = useState(false);
+  const menuToggleRef = useRef<HTMLButtonElement>(null);
   const scrolled = useSyncExternalStore(subscribeToScroll, hasScrolled, hasScrolledOnServer);
+
+  useEffect(() => {
+    if (!open) return;
+    function onKeyDown(event: KeyboardEvent) {
+      closeMobileMenuOnEscape({
+        key: event.key,
+        activeElement: document.activeElement,
+        menu: document.getElementById("mobile-nav"),
+        toggle: menuToggleRef.current,
+        close: () => setOpen(false),
+        preventDefault: () => event.preventDefault(),
+      });
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [open]);
 
   return (
     <header
@@ -66,6 +127,7 @@ export default function Header() {
         </nav>
 
         <button
+          ref={menuToggleRef}
           type="button"
           onClick={() => setOpen((value) => !value)}
           aria-expanded={open}

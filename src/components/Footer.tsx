@@ -48,13 +48,13 @@ export default function Footer() {
           <ul className="flex flex-col gap-2 text-base">
             {SITE_LINKS.map((link) => (
               <li key={link.href}>
-                <Link href={link.href} className="link-quiet">
+                <Link href={link.href} className="link-quiet footer-link">
                   {link.label}
                 </Link>
               </li>
             ))}
             <li>
-              <a href={TOOLKIT_URL} target="_blank" rel="noopener" className="link-quiet">
+              <a href={TOOLKIT_URL} target="_blank" rel="noopener" className="link-quiet footer-link">
                 The free toolkit
               </a>
             </li>
@@ -68,7 +68,7 @@ export default function Footer() {
           <ul className="flex flex-col gap-3 text-base">
             {posts.map((post) => (
               <li key={post.slug} className="flex flex-col gap-x-4 sm:flex-row sm:items-baseline sm:justify-between">
-                <Link href={`/blog/${post.slug}`} className="link-quiet">
+                <Link href={`/blog/${post.slug}`} className="link-quiet footer-link">
                   {post.title}
                 </Link>
                 <span className="caption flex-none">{post.readingTime}</span>
@@ -82,7 +82,7 @@ export default function Footer() {
         <p className="caption">
           © {new Date().getFullYear()} {SITE.legalName}
         </p>
-        <a href="/feed.xml" className="caption link-quiet inline-flex items-center gap-2">
+        <a href="/feed.xml" className="caption link-quiet footer-link inline-flex items-center gap-2">
           <IconFeed width={16} height={16} />
           RSS feed
         </a>
